@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  MANAGER
+  STAFF
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Store {
+  id       String @id @default(uuid()) @db.Uuid
+  code     String @unique @db.VarChar(20)
+  name     String @db.VarChar(100)
+  timeZone String @default("Asia/Tokyo") @db.VarChar(50)
+
+  memberships  StoreMember[]
+  shiftPresets ShiftPreset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id                 String  @id @default(uuid()) @db.Uuid
+  name               String  @db.VarChar(100)
+  passwordHash       String  @db.VarChar(255)
+  mustChangePassword Boolean @default(true)
+
+  memberships StoreMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StoreMember {
+  id      String @id @default(uuid()) @db.Uuid
+  storeId String @db.Uuid
+  userId  String @db.Uuid
+
+  loginId  String       @db.VarChar(3)
+  role     Role         @default(STAFF)
+  status   MemberStatus @default(ACTIVE)
+  colorKey String       @db.VarChar(30)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, loginId])
+  @@unique([storeId, userId])
+  @@index([userId])
+}
+
+model ShiftPreset {
+  id      String @id @default(uuid()) @db.Uuid
+  storeId String @db.Uuid
+
+  name                 String  @db.VarChar(50)
+  startMinute          Int
+  endMinute            Int
+  crossesMidnight      Boolean @default(false)
+  defaultRequiredCount Int     @default(2)
+  sortOrder            Int
+  isActive             Boolean @default(true)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, name])
+  @@index([storeId, sortOrder])
+}
