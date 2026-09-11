@@ -1,8 +1,11 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+import { authRouter } from "./routes/auth-routes.js";
 import { notFoundHandler } from "./middleware/not-found.js";
 import { errorHandler } from "./middleware/error-handler.js";
+
 
 export const app = express();
 
@@ -18,6 +21,7 @@ app.use(
   }),
 );
 
+app.use(cookieParser());
 app.use(express.json());
 
 app.get("/api/v1/health", (_req, res) => {
@@ -26,6 +30,8 @@ app.get("/api/v1/health", (_req, res) => {
     message: "Shift Management API is running",
   });
 });
+
+app.use("/api/v1/auth", authRouter);
 
 // Routes အားလုံးရဲ့နောက်မှာထားရမယ်
 app.use(notFoundHandler);
