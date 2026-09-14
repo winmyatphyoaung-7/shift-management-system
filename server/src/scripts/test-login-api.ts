@@ -1,14 +1,14 @@
 import "dotenv/config";
 
 async function main(): Promise<void> {
-  const temporaryPassword =
-    process.env["SEED_MANAGER_TEMP_PASSWORD"];
+  const currentPassword =
+  process.env["CURRENT_MANAGER_PASSWORD"];
 
-  if (!temporaryPassword) {
-    throw new Error(
-      "SEED_MANAGER_TEMP_PASSWORD is missing",
-    );
-  }
+  if (!currentPassword) {
+  throw new Error(
+    "CURRENT_MANAGER_PASSWORD is missing",
+  );
+}
 
   const loginResponse = await fetch(
     "http://localhost:3000/api/v1/auth/login",
@@ -19,7 +19,7 @@ async function main(): Promise<void> {
       },
       body: JSON.stringify({
         loginId: "001",
-        password: temporaryPassword,
+        password: currentPassword,
       }),
     },
   );

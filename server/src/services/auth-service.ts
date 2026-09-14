@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import type { AuthTokenPayload } from "./token-service.js";
 import type { AuthenticatedMember } from "../types/auth.js";
 
+const PASSWORD_HASH_ROUNDS = 12;
 
 export async function findActiveMembershipByLoginId(
     loginId: string,
@@ -109,4 +110,50 @@ export async function findCurrentAuthMember(
     mustChangePassword:
       membership.user.mustChangePassword,
   };
+}
+
+export async function changeMemberPassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      passwordHash: true,
+    },
+  });
+
+  if (!user) {
+    return false;
+  }
+
+  const currentPasswordMatches =
+    await bcrypt.compare(
+      currentPassword,
+      user.passwordHash,
+    );
+
+  if (!currentPasswordMatches) {
+    return false;
+  }
+
+  const newPasswordHash = await bcrypt.hash(
+    newPassword,
+    PASSWORD_HASH_ROUNDS,
+  );
+
+  await prisma.user.update({
+    where: {
+      id: userId,
+    },
+    data: {
+      passwordHash: newPasswordHash,
+      mustChangePassword: false,
+    },
+  });
+
+  return true;
 }
