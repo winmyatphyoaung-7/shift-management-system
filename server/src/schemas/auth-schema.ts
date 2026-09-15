@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { passwordSchema } from "./password-schema.js";
+
 export const loginBodySchema = z.object({
   loginId: z
     .string()
@@ -16,17 +18,7 @@ export type LoginBody = z.infer<
   typeof loginBodySchema
 >;
 
-const newPasswordSchema = z
-  .string()
-  .min(
-    12,
-    "New password must contain at least 12 characters",
-  )
-  .refine(
-    (password) =>
-      Buffer.byteLength(password, "utf8") <= 72,
-    "New password must not exceed 72 bytes",
-  );
+
 
 export const changePasswordBodySchema = z
   .object({
@@ -34,8 +26,7 @@ export const changePasswordBodySchema = z
       .string()
       .min(1, "Current password is required"),
 
-    newPassword: newPasswordSchema,
-
+    newPassword: passwordSchema,
     confirmPassword: z
       .string()
       .min(1, "Password confirmation is required"),

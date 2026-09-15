@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { authRouter } from "./routes/auth-routes.js";
+import { memberRouter } from "./routes/member-routes.js";
 import { notFoundHandler } from "./middleware/not-found.js";
 import { errorHandler } from "./middleware/error-handler.js";
 
@@ -32,6 +33,7 @@ app.get("/api/v1/health", (_req, res) => {
 });
 
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/members", memberRouter);
 
 // Routes အားလုံးရဲ့နောက်မှာထားရမယ်
 app.use(notFoundHandler);
