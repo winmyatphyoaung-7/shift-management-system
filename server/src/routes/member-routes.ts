@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   createMemberController,
+  deactivateMemberController,
   listMembersController,
   resetMemberPasswordController,
   updateMemberController,
@@ -55,4 +56,13 @@ memberRouter.post(
   validateParams(memberIdParamsSchema),
   validateBody(resetMemberPasswordBodySchema),
   resetMemberPasswordController,
+);
+
+memberRouter.post(
+  "/:id/deactivate",
+  requireAuth,
+  requirePasswordChanged,
+  requireManager,
+  validateParams(memberIdParamsSchema),
+  deactivateMemberController,
 );

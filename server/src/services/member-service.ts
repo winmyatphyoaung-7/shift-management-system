@@ -297,3 +297,57 @@ export async function resetStaffMemberPassword(
     },
   });
 }
+
+export async function deactivateStoreMember(
+  storeId: string,
+  membershipId: string,
+): Promise<void> {
+  const membership =
+    await prisma.storeMember.findFirst({
+      where: {
+        id: membershipId,
+        storeId,
+      },
+      select: {
+        id: true,
+        role: true,
+        status: true,
+      },
+    });
+
+  if (!membership) {
+    throw new AppError(
+      404,
+      "MEMBER_NOT_FOUND",
+      "Member not found",
+    );
+  }
+
+  if (membership.role !== "STAFF") {
+    throw new AppError(
+      400,
+      "MANAGER_DEACTIVATION_NOT_ALLOWED",
+      "Manager membership cannot be deactivated",
+    );
+  }
+
+  if (membership.status === "INACTIVE") {
+    throw new AppError(
+      409,
+      "MEMBER_ALREADY_INACTIVE",
+      "Member is already inactive",
+    );
+  }
+
+  // Add future-shift and unresolved
+  // coverage-request checks when those models exist.
+
+  await prisma.storeMember.update({
+    where: {
+      id: membership.id,
+    },
+    data: {
+      status: "INACTIVE",
+    },
+  });
+}

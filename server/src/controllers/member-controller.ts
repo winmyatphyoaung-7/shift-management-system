@@ -12,6 +12,7 @@ import type {
 } from "../schemas/member-schema.js";
 import {
   createStaffMember,
+  deactivateStoreMember,
   listStoreMembers,
   resetStaffMemberPassword,
   updateStoreMember,
@@ -31,6 +32,9 @@ type ResetMemberPasswordRequest = Request<
   MemberIdParams,
   unknown,
   ResetMemberPasswordBody
+>;
+type MemberIdRequest = Request<
+  MemberIdParams
 >;
 
 export async function listMembersController(
@@ -136,5 +140,29 @@ export async function resetMemberPasswordController(
     status: "success",
     message:
       "Member password reset successfully",
+  });
+}
+
+export async function deactivateMemberController(
+  req: MemberIdRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  await deactivateStoreMember(
+    req.auth.storeId,
+    req.params.id,
+  );
+
+  res.status(200).json({
+    status: "success",
+    message:
+      "Member deactivated successfully",
   });
 }
