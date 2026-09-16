@@ -4,16 +4,33 @@ import type {
 } from "express";
 
 import { AppError } from "../errors/app-error.js";
-import type { CreateMemberBody } from "../schemas/member-schema.js";
+import type {
+  CreateMemberBody,
+  MemberIdParams,
+  ResetMemberPasswordBody,
+  UpdateMemberBody,
+} from "../schemas/member-schema.js";
 import {
   createStaffMember,
   listStoreMembers,
+  resetStaffMemberPassword,
+  updateStoreMember,
 } from "../services/member-service.js";
 
 type CreateMemberRequest = Request<
   Record<string, never>,
   unknown,
   CreateMemberBody
+>;
+type UpdateMemberRequest = Request<
+  MemberIdParams,
+  unknown,
+  UpdateMemberBody
+>;
+type ResetMemberPasswordRequest = Request<
+  MemberIdParams,
+  unknown,
+  ResetMemberPasswordBody
 >;
 
 export async function listMembersController(
@@ -68,5 +85,56 @@ export async function createMemberController(
     data: {
       member,
     },
+  });
+}
+
+export async function updateMemberController(
+  req: UpdateMemberRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const member = await updateStoreMember(
+    req.auth.storeId,
+    req.params.id,
+    req.body,
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      member,
+    },
+  });
+}
+
+export async function resetMemberPasswordController(
+  req: ResetMemberPasswordRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  await resetStaffMemberPassword(
+    req.auth.storeId,
+    req.params.id,
+    req.body.temporaryPassword,
+  );
+
+  res.status(200).json({
+    status: "success",
+    message:
+      "Member password reset successfully",
   });
 }
