@@ -17,6 +17,16 @@ enum MemberStatus {
   INACTIVE
 }
 
+enum ScheduleDayStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum ShiftStatus {
+  ACTIVE
+  CANCELLED
+}
+
 model Store {
   id       String @id @default(uuid()) @db.Uuid
   code     String @unique @db.VarChar(20)
@@ -25,6 +35,7 @@ model Store {
 
   memberships  StoreMember[]
   shiftPresets ShiftPreset[]
+  scheduleDays ScheduleDay[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -52,8 +63,13 @@ model StoreMember {
   status   MemberStatus @default(ACTIVE)
   colorKey String       @db.VarChar(30)
 
-  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  store                 Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  publishedScheduleDays ScheduleDay[] @relation("ScheduleDayPublisher")
+  assignedShifts        Shift[]       @relation("ShiftAssignee")
+  createdShifts         Shift[]       @relation("ShiftCreator")
+  updatedShifts         Shift[]       @relation("ShiftUpdater")
+  cancelledShifts       Shift[]       @relation("ShiftCanceller")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -75,11 +91,86 @@ model ShiftPreset {
   sortOrder            Int
   isActive             Boolean @default(true)
 
-  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  store                Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  coverageRequirements CoverageRequirement[]
+  shifts               Shift[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([storeId, name])
   @@index([storeId, sortOrder])
+}
+
+model ScheduleDay {
+  id           String   @id @default(uuid()) @db.Uuid
+  storeId      String   @db.Uuid
+  scheduleDate DateTime @db.Date
+
+  status                  ScheduleDayStatus @default(DRAFT)
+  publishedAt             DateTime?
+  publishedByMembershipId String?           @db.Uuid
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  publishedBy StoreMember? @relation("ScheduleDayPublisher", fields: [publishedByMembershipId], references: [id], onDelete: Restrict)
+
+  coverageRequirements CoverageRequirement[]
+  shifts               Shift[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, scheduleDate])
+  @@index([storeId, status])
+}
+
+model CoverageRequirement {
+  id            String   @id @default(uuid()) @db.Uuid
+  scheduleDayId String   @db.Uuid
+  shiftPresetId String   @db.Uuid
+  startAt       DateTime @db.Timestamptz(3)
+  endAt         DateTime @db.Timestamptz(3)
+  requiredCount Int
+
+  scheduleDay ScheduleDay @relation(fields: [scheduleDayId], references: [id], onDelete: Cascade)
+  shiftPreset ShiftPreset @relation(fields: [shiftPresetId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scheduleDayId, shiftPresetId])
+  @@index([shiftPresetId])
+}
+
+model Shift {
+  id                      String  @id @default(uuid()) @db.Uuid
+  scheduleDayId           String  @db.Uuid
+  assigneeMembershipId    String  @db.Uuid
+  shiftPresetId           String? @db.Uuid
+  createdByMembershipId   String  @db.Uuid
+  updatedByMembershipId   String  @db.Uuid
+  cancelledByMembershipId String? @db.Uuid
+
+  startAt      DateTime    @db.Timestamptz(3)
+  endAt        DateTime    @db.Timestamptz(3)
+  breakMinutes Int
+  status       ShiftStatus @default(ACTIVE)
+  note         String?     @db.VarChar(500)
+  cancelledAt  DateTime?   @db.Timestamptz(3)
+
+  scheduleDay ScheduleDay  @relation(fields: [scheduleDayId], references: [id], onDelete: Cascade)
+  shiftPreset ShiftPreset? @relation(fields: [shiftPresetId], references: [id], onDelete: SetNull)
+
+  assignee    StoreMember  @relation("ShiftAssignee", fields: [assigneeMembershipId], references: [id], onDelete: Restrict)
+  createdBy   StoreMember  @relation("ShiftCreator", fields: [createdByMembershipId], references: [id], onDelete: Restrict)
+  updatedBy   StoreMember  @relation("ShiftUpdater", fields: [updatedByMembershipId], references: [id], onDelete: Restrict)
+  cancelledBy StoreMember? @relation("ShiftCanceller", fields: [cancelledByMembershipId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scheduleDayId, status])
+  @@index([assigneeMembershipId, startAt])
+  @@index([shiftPresetId])
 }
