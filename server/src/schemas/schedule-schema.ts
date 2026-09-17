@@ -39,3 +39,59 @@ export const listScheduleDaysQuerySchema = z
 export type ListScheduleDaysQuery = z.infer<
   typeof listScheduleDaysQuerySchema
 >;
+
+const absoluteDateTimeSchema = z
+  .string()
+  .datetime({
+    offset: true,
+  });
+
+export const createShiftsBodySchema = z
+  .object({
+    scheduleDate: scheduleDateSchema,
+
+    shiftPresetId: z
+      .string()
+      .uuid()
+      .optional(),
+
+    assigneeMembershipIds: z
+      .array(z.string().uuid())
+      .min(
+        1,
+        "At least one assignee is required",
+      )
+      .refine(
+        (membershipIds) =>
+          new Set(membershipIds).size ===
+          membershipIds.length,
+        "Assignee membership IDs must be unique",
+      ),
+
+    startAt: absoluteDateTimeSchema,
+    endAt: absoluteDateTimeSchema,
+
+    note: z
+      .string()
+      .trim()
+      .max(
+        500,
+        "Note must not exceed 500 characters",
+      )
+      .optional(),
+  })
+  .strict()
+  .refine(
+    (data) =>
+      new Date(data.endAt).getTime() >
+      new Date(data.startAt).getTime(),
+    {
+      path: ["endAt"],
+      message:
+        "Shift end time must be after start time",
+    },
+  );
+
+export type CreateShiftsBody = z.infer<
+  typeof createShiftsBodySchema
+>;

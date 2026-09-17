@@ -5,8 +5,10 @@ import cookieParser from "cookie-parser";
 import { authRouter } from "./routes/auth-routes.js";
 import { memberRouter } from "./routes/member-routes.js";
 import { scheduleRouter } from "./routes/schedule-routes.js";
+import { shiftRouter } from "./routes/shift-routes.js";
 import { notFoundHandler } from "./middleware/not-found.js";
 import { errorHandler } from "./middleware/error-handler.js";
+
 
 
 export const app = express();
@@ -35,7 +37,8 @@ app.get("/api/v1/health", (_req, res) => {
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/members", memberRouter);
-app.use("/api/v1/schedule-days",scheduleRouter,);
+app.use("/api/v1/schedule-days",scheduleRouter);
+app.use("/api/v1/shifts",shiftRouter);
 
 // Routes အားလုံးရဲ့နောက်မှာထားရမယ်
 app.use(notFoundHandler);
