@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   listScheduleDaysController,
   publishScheduleDaysController,
+  copyWeekController,
 } from "../controllers/schedule-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
@@ -12,6 +13,7 @@ import { validateBody } from "../middleware/validate-body.js";
 import {
   listScheduleDaysQuerySchema,
   publishScheduleDaysBodySchema,
+  copyWeekBodySchema,
 } from "../schemas/schedule-schema.js";
 
 export const scheduleRouter = Router();
@@ -35,4 +37,13 @@ scheduleRouter.post(
     publishScheduleDaysBodySchema,
   ),
   publishScheduleDaysController,
+);
+
+scheduleRouter.post(
+  "/copy-week",
+  requireAuth,
+  requirePasswordChanged,
+  requireManager,
+  validateBody(copyWeekBodySchema),
+  copyWeekController,
 );

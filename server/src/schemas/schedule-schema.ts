@@ -208,3 +208,54 @@ export type UpdateCoverageRequirementBody =
   z.infer<
     typeof updateCoverageRequirementBodySchema
   >;
+
+const mondayScheduleDateSchema =
+  scheduleDateSchema.refine(
+    (value) =>
+      new Date(
+        `${value}T00:00:00.000Z`,
+      ).getUTCDay() === 1,
+    "Week start date must be a Monday",
+  );
+
+const ONE_WEEK_IN_MILLISECONDS =
+  7 * 24 * 60 * 60 * 1000;
+
+export const copyWeekBodySchema = z
+  .object({
+    sourceWeekStart:
+      mondayScheduleDateSchema,
+
+    targetWeekStart:
+      mondayScheduleDateSchema,
+
+    confirmed: z
+      .boolean()
+      .default(false),
+  })
+  .strict()
+  .refine(
+    (data) => {
+      const sourceTime = new Date(
+        `${data.sourceWeekStart}T00:00:00.000Z`,
+      ).getTime();
+
+      const targetTime = new Date(
+        `${data.targetWeekStart}T00:00:00.000Z`,
+      ).getTime();
+
+      return (
+        targetTime - sourceTime ===
+        ONE_WEEK_IN_MILLISECONDS
+      );
+    },
+    {
+      path: ["targetWeekStart"],
+      message:
+        "Target week must start exactly seven days after the source week",
+    },
+  );
+
+export type CopyWeekBody = z.infer<
+  typeof copyWeekBodySchema
+>;
