@@ -11,8 +11,8 @@ import type {
 } from "../schemas/schedule-schema.js";
 import {
   createDraftShifts,
-  deleteDraftShift,
-  updateDraftShift,
+  removeShift,
+  updateShift,
 } from "../services/shift-service.js";
 type CreateShiftsRequest = Request<
   Record<string, never>,
@@ -63,7 +63,7 @@ export async function updateShiftController(
     );
   }
 
-  const result = await updateDraftShift(
+  const result = await updateShift(
     req.auth.storeId,
     req.params.id,
     req.auth.membershipId,
@@ -88,14 +88,17 @@ export async function deleteShiftController(
     );
   }
 
-  await deleteDraftShift(
+  const result = await removeShift(
     req.auth.storeId,
     req.params.id,
+    req.auth.membershipId,
   );
 
   res.status(200).json({
     status: "success",
     message:
-      "Draft shift deleted successfully",
+      result.action === "DELETED"
+        ? "Draft shift deleted successfully"
+        : "Published shift cancelled successfully",
   });
 }

@@ -373,7 +373,7 @@ export async function createDraftShifts(
   );
 }
 
-export async function updateDraftShift(
+export async function updateShift(
   storeId: string,
   shiftId: string,
   managerMembershipId: string,
@@ -421,16 +421,7 @@ export async function updateDraftShift(
         );
       }
 
-      if (
-        existingShift.scheduleDay.status !==
-        "DRAFT"
-      ) {
-        throw new AppError(
-          409,
-          "SHIFT_NOT_DRAFT",
-          "Only draft shifts can be edited by this operation",
-        );
-      }
+
 
       if (
         existingShift.status !== "ACTIVE"
@@ -669,11 +660,14 @@ export async function updateDraftShift(
   );
 }
 
-export async function deleteDraftShift(
+export async function removeShift(
   storeId: string,
   shiftId: string,
-): Promise<void> {
-  await prisma.$transaction(
+  managerMembershipId: string,
+): Promise<{
+  action: "DELETED" | "CANCELLED";
+}> {
+  return prisma.$transaction(
     async (transaction) => {
       const shift =
         await transaction.shift.findFirst({
@@ -704,22 +698,11 @@ export async function deleteDraftShift(
         );
       }
 
-      if (
-        shift.scheduleDay.status !==
-        "DRAFT"
-      ) {
+      if (shift.status === "CANCELLED") {
         throw new AppError(
           409,
-          "SHIFT_NOT_DRAFT",
-          "Only draft shifts can be permanently deleted",
-        );
-      }
-
-      if (shift.status !== "ACTIVE") {
-        throw new AppError(
-          409,
-          "SHIFT_NOT_ACTIVE",
-          "Only active draft shifts can be deleted",
+          "SHIFT_ALREADY_CANCELLED",
+          "Shift is already cancelled",
         );
       }
 
@@ -730,15 +713,42 @@ export async function deleteDraftShift(
         throw new AppError(
           409,
           "SHIFT_ALREADY_STARTED",
-          "A shift cannot be deleted after its start time",
+          "A shift cannot be deleted or cancelled after its start time",
         );
       }
 
-      await transaction.shift.delete({
+      if (
+        shift.scheduleDay.status ===
+        "DRAFT"
+      ) {
+        await transaction.shift.delete({
+          where: {
+            id: shift.id,
+          },
+        });
+
+        return {
+          action: "DELETED",
+        };
+      }
+
+      await transaction.shift.update({
         where: {
           id: shift.id,
         },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          cancelledByMembershipId:
+            managerMembershipId,
+          updatedByMembershipId:
+            managerMembershipId,
+        },
       });
+
+      return {
+        action: "CANCELLED",
+      };
     },
     {
       isolationLevel: "Serializable",
