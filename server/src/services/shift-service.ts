@@ -5,10 +5,10 @@ import type {
 } from "../schemas/schedule-schema.js";
 import {
   calculateBreakMinutes,
-  createDateTimeInTimeZone,
   formatDateInTimeZone,
   isThirtyMinuteIncrement,
 } from "../utils/schedule-time.js";
+import { ensureScheduleDayWithCoverageRequirements } from "./schedule-day-service.js";
 import { prisma } from "../lib/prisma.js";
 
 type ShiftTimingInput = Pick<
@@ -135,29 +135,26 @@ export async function createDraftShifts(
     );
   }
 
-  const scheduleDate = new Date(
-    `${input.scheduleDate}T00:00:00.000Z`,
-  );
+
 
   return prisma.$transaction(
     async (transaction) => {
-      const existingScheduleDay =
-        await transaction.scheduleDay.findUnique({
-          where: {
-            storeId_scheduleDate: {
-              storeId,
-              scheduleDate,
-            },
+      const {
+        scheduleDay,
+        activePresets,
+      } =
+        await ensureScheduleDayWithCoverageRequirements(
+          {
+            transaction,
+            storeId,
+            scheduleDate:
+              input.scheduleDate,
+            timeZone: store.timeZone,
           },
-          select: {
-            id: true,
-            status: true,
-          },
-        });
+        );
 
       if (
-        existingScheduleDay?.status ===
-        "PUBLISHED"
+        scheduleDay.status === "PUBLISHED"
       ) {
         throw new AppError(
           409,
@@ -230,31 +227,7 @@ export async function createDraftShifts(
         );
       }
 
-      const activePresets =
-        await transaction.shiftPreset.findMany({
-          where: {
-            storeId,
-            isActive: true,
-          },
-          orderBy: {
-            sortOrder: "asc",
-          },
-          select: {
-            id: true,
-            startMinute: true,
-            endMinute: true,
-            crossesMidnight: true,
-            defaultRequiredCount: true,
-          },
-        });
 
-      if (activePresets.length === 0) {
-        throw new AppError(
-          409,
-          "SHIFT_PRESETS_NOT_CONFIGURED",
-          "Active shift presets are required",
-        );
-      }
 
       if (
         input.shiftPresetId &&
@@ -326,49 +299,7 @@ export async function createDraftShifts(
           },
         });
 
-      const scheduleDay =
-        existingScheduleDay ??
-        (await transaction.scheduleDay.create({
-          data: {
-            storeId,
-            scheduleDate,
-          },
-          select: {
-            id: true,
-            status: true,
-          },
-        }));
 
-      await transaction.coverageRequirement.createMany({
-        data: activePresets.map(
-          (preset) => ({
-            scheduleDayId:
-              scheduleDay.id,
-            shiftPresetId: preset.id,
-
-            startAt:
-              createDateTimeInTimeZone(
-                input.scheduleDate,
-                preset.startMinute,
-                store.timeZone,
-              ),
-
-            endAt:
-              createDateTimeInTimeZone(
-                input.scheduleDate,
-                preset.endMinute,
-                store.timeZone,
-                preset.crossesMidnight
-                  ? 1
-                  : 0,
-              ),
-
-            requiredCount:
-              preset.defaultRequiredCount,
-          }),
-        ),
-        skipDuplicates: true,
-      });
 
       const shifts = [];
 

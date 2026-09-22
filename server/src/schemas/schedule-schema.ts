@@ -15,7 +15,7 @@ export const scheduleDateSchema = z
       return (
         !Number.isNaN(date.getTime()) &&
         date.toISOString().slice(0, 10) ===
-          value
+        value
       );
     },
     "Date must be a valid calendar date",
@@ -39,6 +39,14 @@ export const listScheduleDaysQuerySchema = z
 export type ListScheduleDaysQuery = z.infer<
   typeof listScheduleDaysQuerySchema
 >;
+
+export const publishScheduleDaysBodySchema =
+  listScheduleDaysQuerySchema;
+
+export type PublishScheduleDaysBody =
+  z.infer<
+    typeof publishScheduleDaysBodySchema
+  >;
 
 const absoluteDateTimeSchema = z
   .string()
@@ -153,7 +161,7 @@ export const updateShiftBodySchema = z
       !data.startAt ||
       !data.endAt ||
       new Date(data.endAt).getTime() >
-        new Date(data.startAt).getTime(),
+      new Date(data.startAt).getTime(),
     {
       path: ["endAt"],
       message:

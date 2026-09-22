@@ -1,10 +1,18 @@
 import { Router } from "express";
 
-import { listScheduleDaysController } from "../controllers/schedule-controller.js";
+import {
+  listScheduleDaysController,
+  publishScheduleDaysController,
+} from "../controllers/schedule-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
 import { validateQuery } from "../middleware/validate-query.js";
-import { listScheduleDaysQuerySchema } from "../schemas/schedule-schema.js";
+import { requireManager } from "../middleware/require-manager.js";
+import { validateBody } from "../middleware/validate-body.js";
+import {
+  listScheduleDaysQuerySchema,
+  publishScheduleDaysBodySchema,
+} from "../schemas/schedule-schema.js";
 
 export const scheduleRouter = Router();
 
@@ -16,4 +24,15 @@ scheduleRouter.get(
     listScheduleDaysQuerySchema,
   ),
   listScheduleDaysController,
+);
+
+scheduleRouter.post(
+  "/publish",
+  requireAuth,
+  requirePasswordChanged,
+  requireManager,
+  validateBody(
+    publishScheduleDaysBodySchema,
+  ),
+  publishScheduleDaysController,
 );
