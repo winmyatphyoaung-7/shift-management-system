@@ -1,3 +1,4 @@
+import { calculateUnderstaffedIntervals } from "../utils/coverage.js";
 import { prisma } from "../lib/prisma.js";
 import type { ListScheduleDaysQuery } from "../schemas/schedule-schema.js";
 
@@ -27,8 +28,8 @@ export async function listScheduleDays(
         ...(includeDrafts
           ? {}
           : {
-              status: "PUBLISHED",
-            }),
+            status: "PUBLISHED",
+          }),
       },
 
       orderBy: {
@@ -110,14 +111,40 @@ export async function listScheduleDays(
       },
     });
 
-  return scheduleDays.map(
-    (scheduleDay) => ({
+  return scheduleDays.map((scheduleDay) => {
+    const coverageWarnings =
+      calculateUnderstaffedIntervals(
+        scheduleDay.coverageRequirements.map(
+          (requirement) => ({
+            id: requirement.id,
+            shiftPresetId:
+              requirement.shiftPreset.id,
+            shiftPresetName:
+              requirement.shiftPreset.name,
+            startAt: requirement.startAt,
+            endAt: requirement.endAt,
+            requiredCount:
+              requirement.requiredCount,
+          }),
+        ),
+        scheduleDay.shifts.map((shift) => ({
+          assigneeMembershipId:
+            shift.assignee.id,
+          startAt: shift.startAt,
+          endAt: shift.endAt,
+          status: shift.status,
+        })),
+      );
+
+    return {
       ...scheduleDay,
 
       scheduleDate:
         scheduleDay.scheduleDate
           .toISOString()
           .slice(0, 10),
-    }),
-  );
+
+      coverageWarnings,
+    };
+  });
 }

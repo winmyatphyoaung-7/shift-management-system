@@ -164,3 +164,39 @@ export const updateShiftBodySchema = z
 export type UpdateShiftBody = z.infer<
   typeof updateShiftBodySchema
 >;
+
+export const coverageRequirementIdParamsSchema =
+  z
+    .object({
+      id: z
+        .string()
+        .uuid(
+          "Coverage requirement ID must be a valid UUID",
+        ),
+    })
+    .strict();
+
+export type CoverageRequirementIdParams =
+  z.infer<
+    typeof coverageRequirementIdParamsSchema
+  >;
+
+export const updateCoverageRequirementBodySchema =
+  z
+    .object({
+      requiredCount: z
+        .number()
+        .int(
+          "Required count must be an integer",
+        )
+        .min(
+          1,
+          "Required count must be at least 1",
+        ),
+    })
+    .strict();
+
+export type UpdateCoverageRequirementBody =
+  z.infer<
+    typeof updateCoverageRequirementBodySchema
+  >;

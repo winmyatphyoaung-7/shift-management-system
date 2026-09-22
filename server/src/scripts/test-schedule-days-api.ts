@@ -39,7 +39,7 @@ if (!authCookie) {
 }
 
 const scheduleDaysResponse = await fetch(
-    `${baseUrl}/schedule-days?from=2026-09-14&to=2026-09-20`,
+    `${baseUrl}/schedule-days?from=2026-10-04&to=2026-10-04`,
     {
         headers: {
             Cookie: authCookie,
@@ -58,6 +58,9 @@ const invalidDateResponse = await fetch(
         },
     },
 );
+const firstScheduleDay =
+    scheduleDaysBody.data
+        ?.scheduleDays?.[0];
 
 const invalidDateBody =
     await invalidDateResponse.json();
@@ -83,9 +86,23 @@ console.log(
             validRange: {
                 statusCode:
                     scheduleDaysResponse.status,
-                body: scheduleDaysBody,
+                scheduleDate:
+                    firstScheduleDay?.scheduleDate,
+                coverageRequirementCount:
+                    firstScheduleDay
+                        ?.coverageRequirements
+                        ?.length,
+                shiftCount:
+                    firstScheduleDay?.shifts?.length,
+                warningCount:
+                    firstScheduleDay
+                        ?.coverageWarnings
+                        ?.length,
+                firstWarning:
+                    firstScheduleDay
+                        ?.coverageWarnings?.[0] ??
+                    null,
             },
-
             invalidCalendarDate: {
                 statusCode:
                     invalidDateResponse.status,
