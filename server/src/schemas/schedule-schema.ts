@@ -95,3 +95,72 @@ export const createShiftsBodySchema = z
 export type CreateShiftsBody = z.infer<
   typeof createShiftsBodySchema
 >;
+
+export const shiftIdParamsSchema = z
+  .object({
+    id: z
+      .string()
+      .uuid(
+        "Shift ID must be a valid UUID",
+      ),
+  })
+  .strict();
+
+export type ShiftIdParams = z.infer<
+  typeof shiftIdParamsSchema
+>;
+
+export const updateShiftBodySchema = z
+  .object({
+    assigneeMembershipId: z
+      .string()
+      .uuid()
+      .optional(),
+
+    shiftPresetId: z
+      .string()
+      .uuid()
+      .nullable()
+      .optional(),
+
+    startAt:
+      absoluteDateTimeSchema.optional(),
+
+    endAt:
+      absoluteDateTimeSchema.optional(),
+
+    note: z
+      .string()
+      .trim()
+      .max(
+        500,
+        "Note must not exceed 500 characters",
+      )
+      .nullable()
+      .optional(),
+  })
+  .strict()
+  .refine(
+    (data) =>
+      Object.keys(data).length > 0,
+    {
+      message:
+        "At least one shift field is required",
+    },
+  )
+  .refine(
+    (data) =>
+      !data.startAt ||
+      !data.endAt ||
+      new Date(data.endAt).getTime() >
+        new Date(data.startAt).getTime(),
+    {
+      path: ["endAt"],
+      message:
+        "Shift end time must be after start time",
+    },
+  );
+
+export type UpdateShiftBody = z.infer<
+  typeof updateShiftBodySchema
+>;

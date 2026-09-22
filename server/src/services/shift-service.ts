@@ -1,5 +1,8 @@
 import { AppError } from "../errors/app-error.js";
-import type { CreateShiftsBody } from "../schemas/schedule-schema.js";
+import type {
+  CreateShiftsBody,
+  UpdateShiftBody,
+} from "../schemas/schedule-schema.js";
 import {
   calculateBreakMinutes,
   createDateTimeInTimeZone,
@@ -8,6 +11,11 @@ import {
 } from "../utils/schedule-time.js";
 import { prisma } from "../lib/prisma.js";
 
+type ShiftTimingInput = Pick<
+  CreateShiftsBody,
+  "scheduleDate" | "startAt" | "endAt"
+>;
+
 type ValidatedShiftTiming = {
   startAt: Date;
   endAt: Date;
@@ -15,7 +23,7 @@ type ValidatedShiftTiming = {
 };
 
 export function validateShiftTiming(
-  input: CreateShiftsBody,
+  input: ShiftTimingInput,
   timeZone: string,
 ): ValidatedShiftTiming {
   const startAt = new Date(input.startAt);
@@ -427,6 +435,379 @@ export async function createDraftShifts(
             }),
           ),
       };
+    },
+    {
+      isolationLevel: "Serializable",
+    },
+  );
+}
+
+export async function updateDraftShift(
+  storeId: string,
+  shiftId: string,
+  managerMembershipId: string,
+  input: UpdateShiftBody,
+) {
+  return prisma.$transaction(
+    async (transaction) => {
+      const existingShift =
+        await transaction.shift.findFirst({
+          where: {
+            id: shiftId,
+            scheduleDay: {
+              storeId,
+            },
+          },
+          select: {
+            id: true,
+            status: true,
+            startAt: true,
+            endAt: true,
+            note: true,
+            assigneeMembershipId: true,
+            shiftPresetId: true,
+
+            scheduleDay: {
+              select: {
+                status: true,
+                scheduleDate: true,
+
+                store: {
+                  select: {
+                    timeZone: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+      if (!existingShift) {
+        throw new AppError(
+          404,
+          "SHIFT_NOT_FOUND",
+          "Shift not found",
+        );
+      }
+
+      if (
+        existingShift.scheduleDay.status !==
+        "DRAFT"
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_NOT_DRAFT",
+          "Only draft shifts can be edited by this operation",
+        );
+      }
+
+      if (
+        existingShift.status !== "ACTIVE"
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_NOT_ACTIVE",
+          "Only active shifts can be edited",
+        );
+      }
+
+      if (
+        existingShift.startAt.getTime() <=
+        Date.now()
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_ALREADY_STARTED",
+          "A shift cannot be edited after its start time",
+        );
+      }
+
+      const finalStartAt =
+        input.startAt !== undefined
+          ? new Date(input.startAt)
+          : existingShift.startAt;
+
+      const finalEndAt =
+        input.endAt !== undefined
+          ? new Date(input.endAt)
+          : existingShift.endAt;
+
+      const scheduleDate =
+        existingShift.scheduleDay.scheduleDate
+          .toISOString()
+          .slice(0, 10);
+
+      const timing = validateShiftTiming(
+        {
+          scheduleDate,
+          startAt:
+            finalStartAt.toISOString(),
+          endAt:
+            finalEndAt.toISOString(),
+        },
+        existingShift.scheduleDay.store
+          .timeZone,
+      );
+
+      if (
+        timing.startAt.getTime() <=
+        Date.now()
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_ALREADY_STARTED",
+          "A shift cannot be moved to a time that has already started",
+        );
+      }
+
+      const finalAssigneeMembershipId =
+        input.assigneeMembershipId ??
+        existingShift.assigneeMembershipId;
+
+      const assignee =
+        await transaction.storeMember.findFirst({
+          where: {
+            id: finalAssigneeMembershipId,
+            storeId,
+          },
+          select: {
+            status: true,
+          },
+        });
+
+      if (!assignee) {
+        throw new AppError(
+          404,
+          "ASSIGNEE_NOT_FOUND",
+          "Assignee was not found",
+        );
+      }
+
+      if (assignee.status !== "ACTIVE") {
+        throw new AppError(
+          409,
+          "ASSIGNEE_INACTIVE",
+          "Inactive members cannot receive new shifts",
+        );
+      }
+
+      const finalShiftPresetId =
+        input.shiftPresetId === undefined
+          ? existingShift.shiftPresetId
+          : input.shiftPresetId;
+
+      if (
+        input.shiftPresetId !==
+        undefined &&
+        input.shiftPresetId !== null
+      ) {
+        const shiftPreset =
+          await transaction.shiftPreset.findFirst({
+            where: {
+              id: input.shiftPresetId,
+              storeId,
+              isActive: true,
+            },
+            select: {
+              id: true,
+            },
+          });
+
+        if (!shiftPreset) {
+          throw new AppError(
+            404,
+            "SHIFT_PRESET_NOT_FOUND",
+            "Active shift preset not found",
+          );
+        }
+      }
+
+      const overlappingShift =
+        await transaction.shift.findFirst({
+          where: {
+            id: {
+              not: existingShift.id,
+            },
+            assigneeMembershipId:
+              finalAssigneeMembershipId,
+            status: "ACTIVE",
+            startAt: {
+              lt: timing.endAt,
+            },
+            endAt: {
+              gt: timing.startAt,
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
+
+      if (overlappingShift) {
+        throw new AppError(
+          409,
+          "SHIFT_OVERLAP",
+          "The assignee already has an overlapping shift",
+          {
+            shiftId:
+              overlappingShift.id,
+            membershipId:
+              finalAssigneeMembershipId,
+          },
+        );
+      }
+
+      const adjacentShift =
+        await transaction.shift.findFirst({
+          where: {
+            id: {
+              not: existingShift.id,
+            },
+            assigneeMembershipId:
+              finalAssigneeMembershipId,
+            status: "ACTIVE",
+            OR: [
+              {
+                endAt: timing.startAt,
+              },
+              {
+                startAt: timing.endAt,
+              },
+            ],
+          },
+          select: {
+            id: true,
+          },
+        });
+
+      const updatedShift =
+        await transaction.shift.update({
+          where: {
+            id: existingShift.id,
+          },
+          data: {
+            assigneeMembershipId:
+              finalAssigneeMembershipId,
+            shiftPresetId:
+              finalShiftPresetId,
+            startAt: timing.startAt,
+            endAt: timing.endAt,
+            breakMinutes:
+              timing.breakMinutes,
+            note:
+              input.note === undefined
+                ? existingShift.note
+                : input.note || null,
+            updatedByMembershipId:
+              managerMembershipId,
+          },
+          select: {
+            id: true,
+            scheduleDayId: true,
+            assigneeMembershipId: true,
+            shiftPresetId: true,
+            startAt: true,
+            endAt: true,
+            breakMinutes: true,
+            status: true,
+            note: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+      return {
+        shift: updatedShift,
+        warnings: adjacentShift
+          ? [
+            {
+              code:
+                "ADJACENT_SHIFT",
+              membershipId:
+                finalAssigneeMembershipId,
+              message:
+                "This member has an adjacent shift",
+            },
+          ]
+          : [],
+      };
+    },
+    {
+      isolationLevel: "Serializable",
+    },
+  );
+}
+
+export async function deleteDraftShift(
+  storeId: string,
+  shiftId: string,
+): Promise<void> {
+  await prisma.$transaction(
+    async (transaction) => {
+      const shift =
+        await transaction.shift.findFirst({
+          where: {
+            id: shiftId,
+            scheduleDay: {
+              storeId,
+            },
+          },
+          select: {
+            id: true,
+            status: true,
+            startAt: true,
+
+            scheduleDay: {
+              select: {
+                status: true,
+              },
+            },
+          },
+        });
+
+      if (!shift) {
+        throw new AppError(
+          404,
+          "SHIFT_NOT_FOUND",
+          "Shift not found",
+        );
+      }
+
+      if (
+        shift.scheduleDay.status !==
+        "DRAFT"
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_NOT_DRAFT",
+          "Only draft shifts can be permanently deleted",
+        );
+      }
+
+      if (shift.status !== "ACTIVE") {
+        throw new AppError(
+          409,
+          "SHIFT_NOT_ACTIVE",
+          "Only active draft shifts can be deleted",
+        );
+      }
+
+      if (
+        shift.startAt.getTime() <=
+        Date.now()
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_ALREADY_STARTED",
+          "A shift cannot be deleted after its start time",
+        );
+      }
+
+      await transaction.shift.delete({
+        where: {
+          id: shift.id,
+        },
+      });
     },
     {
       isolationLevel: "Serializable",
