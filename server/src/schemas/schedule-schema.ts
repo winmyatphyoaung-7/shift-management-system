@@ -259,3 +259,27 @@ export const copyWeekBodySchema = z
 export type CopyWeekBody = z.infer<
   typeof copyWeekBodySchema
 >;
+
+export const clearDraftRangeBodySchema = z
+  .object({
+    from: scheduleDateSchema,
+    to: scheduleDateSchema,
+
+    confirmed: z
+      .boolean()
+      .default(false),
+  })
+  .strict()
+  .refine(
+    (data) => data.from <= data.to,
+    {
+      path: ["to"],
+      message:
+        "The to date must be on or after the from date",
+    },
+  );
+
+export type ClearDraftRangeBody =
+  z.infer<
+    typeof clearDraftRangeBodySchema
+  >;

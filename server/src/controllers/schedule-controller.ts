@@ -8,12 +8,14 @@ import type {
   ListScheduleDaysQuery,
   PublishScheduleDaysBody,
   CopyWeekBody,
+  ClearDraftRangeBody,
 } from "../schemas/schedule-schema.js";
 import {
   listScheduleDays,
   publishScheduleDays,
 } from "../services/schedule-service.js";
 import { copyScheduleWeek } from "../services/copy-week-service.js";
+import { clearDraftRange } from "../services/clear-draft-range-service.js";
 
 type PublishScheduleDaysRequest =
   Request<
@@ -25,6 +27,11 @@ type CopyWeekRequest = Request<
   Record<string, never>,
   unknown,
   CopyWeekBody
+>;
+type ClearDraftRangeRequest = Request<
+  Record<string, never>,
+  unknown,
+  ClearDraftRangeBody
 >;
 
 export async function listScheduleDaysController(
@@ -101,6 +108,28 @@ export async function copyWeekController(
   const result = await copyScheduleWeek(
     req.auth.storeId,
     req.auth.membershipId,
+    req.body,
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: result,
+  });
+}
+export async function clearDraftRangeController(
+  req: ClearDraftRangeRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const result = await clearDraftRange(
+    req.auth.storeId,
     req.body,
   );
 

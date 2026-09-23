@@ -4,6 +4,7 @@ import {
   listScheduleDaysController,
   publishScheduleDaysController,
   copyWeekController,
+  clearDraftRangeController,
 } from "../controllers/schedule-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
@@ -14,6 +15,7 @@ import {
   listScheduleDaysQuerySchema,
   publishScheduleDaysBodySchema,
   copyWeekBodySchema,
+  clearDraftRangeBodySchema,
 } from "../schemas/schedule-schema.js";
 
 export const scheduleRouter = Router();
@@ -46,4 +48,15 @@ scheduleRouter.post(
   requireManager,
   validateBody(copyWeekBodySchema),
   copyWeekController,
+);
+
+scheduleRouter.delete(
+  "/draft-range",
+  requireAuth,
+  requirePasswordChanged,
+  requireManager,
+  validateBody(
+    clearDraftRangeBodySchema,
+  ),
+  clearDraftRangeController,
 );
