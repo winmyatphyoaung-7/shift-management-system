@@ -302,52 +302,108 @@ export async function deactivateStoreMember(
   storeId: string,
   membershipId: string,
 ): Promise<void> {
-  const membership =
-    await prisma.storeMember.findFirst({
-      where: {
-        id: membershipId,
-        storeId,
-      },
-      select: {
-        id: true,
-        role: true,
-        status: true,
-      },
-    });
+  await prisma.$transaction(
+    async (transaction) => {
+      const membership =
+        await transaction.storeMember.findFirst({
+          where: {
+            id: membershipId,
+            storeId,
+          },
+          select: {
+            id: true,
+            role: true,
+            status: true,
+          },
+        });
 
-  if (!membership) {
-    throw new AppError(
-      404,
-      "MEMBER_NOT_FOUND",
-      "Member not found",
-    );
-  }
+      if (!membership) {
+        throw new AppError(
+          404,
+          "MEMBER_NOT_FOUND",
+          "Member not found",
+        );
+      }
 
-  if (membership.role !== "STAFF") {
-    throw new AppError(
-      400,
-      "MANAGER_DEACTIVATION_NOT_ALLOWED",
-      "Manager membership cannot be deactivated",
-    );
-  }
+      if (membership.role !== "STAFF") {
+        throw new AppError(
+          400,
+          "MANAGER_DEACTIVATION_NOT_ALLOWED",
+          "Manager membership cannot be deactivated",
+        );
+      }
 
-  if (membership.status === "INACTIVE") {
-    throw new AppError(
-      409,
-      "MEMBER_ALREADY_INACTIVE",
-      "Member is already inactive",
-    );
-  }
+      if (
+        membership.status === "INACTIVE"
+      ) {
+        throw new AppError(
+          409,
+          "MEMBER_ALREADY_INACTIVE",
+          "Member is already inactive",
+        );
+      }
 
-  // Add future-shift and unresolved
-  // coverage-request checks when those models exist.
+      const futureShift =
+        await transaction.shift.findFirst({
+          where: {
+            assigneeMembershipId:
+              membership.id,
+            status: "ACTIVE",
+            startAt: {
+              gt: new Date(),
+            },
+          },
+          orderBy: {
+            startAt: "asc",
+          },
+          select: {
+            id: true,
+            startAt: true,
+            endAt: true,
 
-  await prisma.storeMember.update({
-    where: {
-      id: membership.id,
+            scheduleDay: {
+              select: {
+                scheduleDate: true,
+                status: true,
+              },
+            },
+          },
+        });
+
+      if (futureShift) {
+        throw new AppError(
+          409,
+          "MEMBER_HAS_FUTURE_SHIFTS",
+          "A member with future active shifts cannot be deactivated",
+          {
+            shiftId: futureShift.id,
+            startAt: futureShift.startAt,
+            endAt: futureShift.endAt,
+            scheduleDate:
+              futureShift.scheduleDay
+                .scheduleDate
+                .toISOString()
+                .slice(0, 10),
+            scheduleStatus:
+              futureShift.scheduleDay.status,
+          },
+        );
+      }
+
+      // Add the unresolved coverage-request
+      // check when that model exists.
+
+      await transaction.storeMember.update({
+        where: {
+          id: membership.id,
+        },
+        data: {
+          status: "INACTIVE",
+        },
+      });
     },
-    data: {
-      status: "INACTIVE",
+    {
+      isolationLevel: "Serializable",
     },
-  });
+  );
 }
