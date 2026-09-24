@@ -5,6 +5,9 @@ import {
 } from 'react-router'
 
 import { LoginPage } from './pages/login-page.tsx'
+import { ChangePasswordPage } from './pages/change-password-page.tsx'
+import { RequireAuth } from './features/auth/require-auth.tsx'
+import { RequirePasswordChanged } from './features/auth/require-password-changed.tsx'
 
 type PlaceholderPageProps = {
   title: string
@@ -43,34 +46,41 @@ function App() {
       />
 
       <Route
-        path="/change-password"
-        element={
-          <PlaceholderPage
-            title="パスワード変更"
-            description="初回ログイン時のパスワード変更画面を準備中です。"
-          />
-        }
-      />
+        element={<RequireAuth />}
+      >
+        <Route
+          path="/change-password"
+          element={
+            <ChangePasswordPage/>
+          }
+        />
 
-      <Route
-        path="/manager"
-        element={
-          <PlaceholderPage
-            title="Manager Dashboard"
-            description="マネージャー向け画面を準備中です。"
+        <Route
+          element={
+            <RequirePasswordChanged />
+          }
+        >
+          <Route
+            path="/manager"
+            element={
+              <PlaceholderPage
+                title="Manager Dashboard"
+                description="マネージャー向け画面を準備中です。"
+              />
+            }
           />
-        }
-      />
 
-      <Route
-        path="/schedule"
-        element={
-          <PlaceholderPage
-            title="My Schedule"
-            description="公開済みシフトの確認画面を準備中です。"
+          <Route
+            path="/schedule"
+            element={
+              <PlaceholderPage
+                title="My Schedule"
+                description="公開済みシフトの確認画面を準備中です。"
+              />
+            }
           />
-        }
-      />
+        </Route>
+      </Route>
 
       <Route
         path="/"
