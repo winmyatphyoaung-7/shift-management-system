@@ -1,9 +1,9 @@
 # Shift Management System — Project Progress
 
-**Last updated:** 2026-09-16
+**Last updated:** 2026-09-24
 **Current branch:** `main`
-**Latest completed feature commit:** `1866221`
-**Current phase:** Milestone 2 completed; Milestone 3 — Schedule Backend next
+**Latest completed feature commit:** `9106cf5`
+**Current phase:** Core schedule backend completed; frontend implementation next
 
 ## 1. Completed milestones
 
@@ -11,20 +11,18 @@
 
 - Express and TypeScript server configured.
 - PostgreSQL database connection established.
-- Prisma 7 configured with PostgreSQL adapter.
-- Initial Prisma schema created.
-- Initial migration created and applied:
-  - `20260908124730_init_foundation`
+- Prisma 7 configured with the PostgreSQL adapter.
+- Initial Prisma schema and migrations created.
 - Prisma Client generated.
 - Idempotent seed script created.
 - Seed creates one store, one manager, and four shift presets.
 - Central Express error handling added.
 - Unknown-route and invalid-JSON handlers added.
-- Reusable Zod body and URL-parameter validation added.
+- Reusable Zod validation middleware added for request bodies, URL parameters, and queries.
 - Health endpoint implemented:
   - `GET /api/v1/health`
 
-### Milestone 2 — Authentication and authorization
+### Milestone 2A — Authentication and authorization
 
 Implemented endpoints:
 
@@ -41,100 +39,117 @@ Implemented features:
 - Production-aware cookie settings.
 - Login rate limiting.
 - Three-digit login ID validation.
-- Active membership validation on login and protected requests.
-- Initial temporary-password change.
+- Active membership validation.
+- Temporary-password change enforcement.
 - `requireAuth`, `requirePasswordChanged`, and `requireManager` middleware.
-- Correct `401` and `403` behavior.
+- Correct `401` and `403` authorization behavior.
 
-### Milestone 2 — Member management
+### Milestone 2B — Member management
 
-Implemented endpoints:
+Implemented features:
 
-- `GET /api/v1/members`
-- `POST /api/v1/members`
-- `PATCH /api/v1/members/:id`
-- `POST /api/v1/members/:id/reset-password`
-- `POST /api/v1/members/:id/deactivate`
+- Member listing.
+- Staff account creation.
+- Member name, login ID, and color editing.
+- Staff password reset.
+- Member deactivation.
+- Store-scoped member access.
+- Store-scoped login ID uniqueness.
+- Password hashes excluded from API responses.
+- Inactive members prevented from logging in.
+- Manager deactivation and manager password reset rejected.
+- Members with future active shifts prevented from being deactivated.
 
-Implemented rules:
+### Milestone 3 — Core schedule backend
 
-- Store scope comes from `req.auth.storeId`.
-- Client-supplied `storeId`, `role`, and `status` are not trusted.
-- Staff accounts are created as `STAFF` and `ACTIVE`.
-- Temporary and reset passwords set `mustChangePassword = true`.
-- Password hashes never appear in API responses.
-- Login ID is a three-digit string and unique within a store.
-- Member name, login ID, and color can be partially updated.
-- Members are deactivated rather than deleted.
-- Inactive members cannot log in.
-- The Version 1 manager cannot be deactivated through the member endpoint.
-- Manager password reset is rejected; managers must provide the current password through the authentication endpoint.
+Implemented data models:
+
+- `ScheduleDay`
+- `CoverageRequirement`
+- `Shift`
+- Schedule and shift status enums.
+
+Implemented schedule features:
+
+- Date-range schedule listing.
+- Store-timezone date and time conversion.
+- Thirty-minute time increment validation.
+- Automatic break calculation.
+- Draft shift creation.
+- Multiple-assignee shift creation.
+- Draft shift editing and permanent deletion.
+- Shift overlap prevention.
+- Adjacent-shift warnings.
+- Coverage requirement editing.
+- Thirty-minute understaffing calculations and warnings.
+- Date-range schedule publication.
+- Staff access limited to published schedules.
+- Published shift editing.
+- Published shift cancellation with history retained.
+- Weekly schedule preview and copying.
+- Draft schedule-range preview and clearing.
+- Published ranges protected from draft clearing.
 
 ## 2. Verified behavior
 
 - `npm run build` passes.
-- Prisma schema validation and database connection pass.
-- Seed script is idempotent.
-- Health endpoint returns `200`.
-- Unknown routes return `404`.
-- Invalid JSON returns `400 INVALID_JSON`.
-- Valid login returns an HttpOnly authentication cookie.
-- Wrong password returns `401 INVALID_CREDENTIALS`.
-- Invalid input returns `400 VALIDATION_ERROR`.
-- `/auth/me` requires authentication and returns the current member.
-- Logout expires the authentication cookie.
-- Password change rejects an incorrect current password.
-- Password change rejects the previous password and accepts the new password.
-- Missing authentication returns `401 UNAUTHORIZED`.
-- A required password change returns `403 PASSWORD_CHANGE_REQUIRED`.
-- Staff access to manager routes returns `403 FORBIDDEN`.
-- Member listing returns safe fields without `passwordHash`.
-- Duplicate store login ID returns `409 LOGIN_ID_ALREADY_EXISTS`.
-- Failed nested member creation does not create an orphan User.
-- Member partial update preserves fields not included in the request.
-- Password reset invalidates the old password and restores `mustChangePassword = true`.
-- Deactivation changes status to `INACTIVE` without deleting the record.
-- Repeated deactivation returns `409 MEMBER_ALREADY_INACTIVE`.
-- Manager deactivation returns `400 MANAGER_DEACTIVATION_NOT_ALLOWED`.
+- Prisma schema validation passes.
+- Database migrations apply successfully.
+- The seed script is idempotent.
+- Authentication and authorization behavior is verified.
+- Password-change enforcement is verified.
+- Member creation, editing, password reset, and deactivation are verified.
+- Duplicate login IDs are rejected.
+- Inactive members cannot log in.
+- Staff cannot access manager-only routes.
+- Draft shifts can be created, edited, and deleted.
+- Published shifts can be edited and cancelled without deleting history.
+- Overlapping shifts are rejected.
+- Adjacent shifts return warnings.
+- Coverage shortages are calculated in thirty-minute intervals.
+- Staff can only view published schedule days.
+- Schedule publishing rejects already-published dates.
+- Copy Week preview does not modify the database.
+- Copy Week creates Draft schedule days and shifts.
+- Copy Week requires an empty target week.
+- Clear Draft Range preview does not modify the database.
+- Clear Draft Range rejects ranges containing published schedule days.
+- Members with future active shifts cannot be deactivated.
+- A member can be deactivated after the future shift is removed.
 
-## 3. Current local development data
-
-- Store count: 1
-- User count: 3
-- Store membership count: 3
-- Shift preset count: 4
-- Manager `001`: `ACTIVE`, password already changed.
-- Demo Staff `002`: `ACTIVE`, currently requires a temporary-password change after reset.
-- Deactivation Test Staff `003`: `INACTIVE`.
-
-Passwords, hashes, database URLs, and JWT secrets are not recorded in this file.
-
-## 4. Current implementation status
+## 3. Current implementation status
 
 | Milestone | Status |
 |---|---|
 | Preparation | Completed |
 | Milestone 1 — Backend foundation | Completed |
-| Milestone 2 — Authentication | Completed |
-| Milestone 2 — Member Management | Completed with one deferred cross-model rule |
-| Milestone 3 — Schedule backend | Next |
-| Milestone 4 — Schedule frontend | Not started |
+| Milestone 2 — Authentication and authorization | Completed |
+| Milestone 2 — Member management | Completed |
+| Milestone 3 — Core schedule backend | Completed |
+| Milestone 4 — Core frontend | Next |
 | Milestone 5 — Replacement workflow | Not started |
 | Milestone 6 — Notifications and dashboards | Not started |
-| Milestone 7 — Quality and delivery | Not started |
+| Milestone 7 — Quality and delivery | In progress |
 
-## 5. Deferred dependency
+## 4. Deferred backend work
 
-Before the application is released, member deactivation must also be blocked when the target member has:
+Member deactivation must eventually also be blocked when the member has unresolved replacement activity.
 
-- Future shifts.
-- Unresolved replacement activity.
+This rule will be implemented after the replacement-request models and workflow exist.
 
-Those checks cannot be implemented yet because the Shift and CoverageRequest models belong to later milestones. Add the checks to `deactivateStoreMember()` as soon as those models exist.
+Additional backend work still planned:
 
-## 6. Test-script environment notes
+- Replacement request and candidate-selection workflow.
+- Notifications.
+- Dashboard summary endpoints if required by the frontend.
+- Automated test-suite organization.
+- Production deployment configuration and final security review.
 
-Passwords must not be written into source code or committed. Manual API scripts read passwords from temporary shell environment variables such as:
+## 5. Test-script environment notes
+
+Passwords and secrets must not be written into source code or committed.
+
+Manual API scripts read passwords from temporary shell environment variables such as:
 
 ```text
 CURRENT_MANAGER_PASSWORD
@@ -153,50 +168,53 @@ npx tsx src/scripts/test-members-api.ts
 unset CURRENT_MANAGER_PASSWORD
 ```
 
-## 7. Next development work
+## 6. Next development work
 
-Start Milestone 3 — Schedule Backend:
+Start the Core Frontend milestone:
 
-1. Review and extend the Prisma schema for ScheduleDay, CoverageRequirement, and Shift.
-2. Create and apply the next migration.
-3. Define date, time, break, and store-timezone utilities.
-4. Implement schedule-day and shift validation schemas.
-5. Implement Draft shift creation and listing.
-6. Add overlap detection and adjacent-shift warnings.
-7. Implement date-range publication.
-8. Add published-shift edit and cancellation rules.
-9. Implement Copy Week and Clear Draft Week.
+1. Review and clean the existing Vite React client.
+2. Configure API access and environment variables.
+3. Implement authentication state and protected routing.
+4. Build the login page.
+5. Build the required-password-change page.
+6. Build the shared application layout and navigation.
+7. Build manager member-management screens.
+8. Build the manager schedule calendar and editor.
+9. Build the staff published-schedule view.
+10. Add loading, empty, validation, and error states.
 
-Important rules:
+After the Core Frontend is working:
 
-- Store scope always comes from the authenticated membership.
-- Times use 30-minute increments.
-- Shifts remain linked to an explicit ScheduleDay.
-- Shifts shorter than 6 hours have no break; shifts of 6 hours or more have a 60-minute break.
-- Draft data is manager-only.
-- Staff can only see Published schedule days.
-- Published shifts are cancelled rather than deleted.
-- Shift overlap is blocked; adjacent shifts produce a warning.
+1. Implement the replacement-request backend.
+2. Build replacement workflow screens.
+3. Implement notifications and dashboard summaries.
+4. Add automated tests and deployment configuration.
 
-## 8. Important commits
+## 7. Important commits
 
+- `9106cf5` — `feat: block member deactivation with future shifts`
+- `1656ee9` — `feat: add draft schedule range clearing`
+- `e1a4d4b` — `feat: add weekly schedule copying`
+- `c9ff508` — `feat: support published shift editing and cancellation`
+- `d8a752d` — `feat: add date-range schedule publishing`
+- `f822d07` — `feat: add coverage requirements and staffing warnings`
+- `6bb725a` — `feat: add draft shift editing and deletion`
+- `1f3f59b` — `feat: add draft shift creation`
+- `9ad5bfb` — `feat: add schedule core and listing API`
 - `1866221` — `feat: add member deactivation`
 - `fc029ee` — `feat: add member editing and password reset`
 - `58f8bc3` — `feat: add member listing and staff creation`
-- `ddd5131` — `docs: add project progress tracker`
 - `c169864` — `feat: add password change and authorization guards`
 - `b5401f9` — `feat: implement JWT authentication flow`
 - `a7b4485` — `feat: add Express middleware foundation`
-- `0049159` — `chore: initialize project foundation`
 
-## 9. Resume point
+## 8. Resume point
 
-Begin the Schedule Backend by reviewing the current Prisma schema against `PROJECT_SPEC.md` before changing models or creating a migration.
+The next task is to review the existing React client and begin the Core Frontend milestone.
 
 Before continuing, verify:
 
 ```bash
-git status
-git log -8 --oneline
+git status -sb
 npm run build
 ```
