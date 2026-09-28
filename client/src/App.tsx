@@ -9,6 +9,8 @@ import { ChangePasswordPage } from './pages/change-password-page.tsx'
 import { RequireAuth } from './features/auth/require-auth.tsx'
 import { RequirePasswordChanged } from './features/auth/require-password-changed.tsx'
 import { RequireManager } from './features/auth/require-manager.tsx'
+import { RequireGuest } from './features/auth/require-guest.tsx'
+import { AuthenticatedHomeRedirect } from './features/auth/authenticated-home-redirect.tsx'
 
 type PlaceholderPageProps = {
   title: string
@@ -41,14 +43,25 @@ function PlaceholderPage({
 function App() {
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={<LoginPage />}
-      />
+      <Route element={<RequireGuest />}>
+        <Route
+          path="/login"
+          element={<LoginPage />}
+        />
+      </Route>
 
       <Route
         element={<RequireAuth />}
       >
+
+        <Route
+          path="/"
+          element={
+            <AuthenticatedHomeRedirect />
+          }
+        />
+
+
         <Route
           path="/change-password"
           element={
@@ -87,21 +100,12 @@ function App() {
         </Route>
       </Route>
 
-      <Route
-        path="/"
-        element={
-          <Navigate
-            to="/login"
-            replace
-          />
-        }
-      />
 
       <Route
         path="*"
         element={
           <Navigate
-            to="/login"
+            to="/"
             replace
           />
         }

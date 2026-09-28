@@ -6,7 +6,6 @@ export function toApiError(
   error: unknown,
 ): ApiErrorResponse {
   if (isAxiosError<ApiErrorResponse>(error)) {
-    console.log(error.response?.data);
     const responseData =
       error.response?.data
 
