@@ -8,6 +8,7 @@ import { LoginPage } from './pages/login-page.tsx'
 import { ChangePasswordPage } from './pages/change-password-page.tsx'
 import { RequireAuth } from './features/auth/require-auth.tsx'
 import { RequirePasswordChanged } from './features/auth/require-password-changed.tsx'
+import { RequireManager } from './features/auth/require-manager.tsx'
 
 type PlaceholderPageProps = {
   title: string
@@ -51,7 +52,7 @@ function App() {
         <Route
           path="/change-password"
           element={
-            <ChangePasswordPage/>
+            <ChangePasswordPage />
           }
         />
 
@@ -61,14 +62,18 @@ function App() {
           }
         >
           <Route
-            path="/manager"
-            element={
-              <PlaceholderPage
-                title="Manager Dashboard"
-                description="マネージャー向け画面を準備中です。"
-              />
-            }
-          />
+            element={<RequireManager />}
+          >
+            <Route
+              path="/manager"
+              element={
+                <PlaceholderPage
+                  title="Manager Dashboard"
+                  description="マネージャー向け画面を準備中です。"
+                />
+              }
+            />
+          </Route>
 
           <Route
             path="/schedule"
