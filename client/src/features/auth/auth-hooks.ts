@@ -11,6 +11,8 @@ import {
   logout,
 } from './auth-api.ts'
 
+import type { AuthenticatedMember } from './auth-types.ts'
+
 export const authQueryKeys = {
   currentMember: [
     'auth',
@@ -19,7 +21,9 @@ export const authQueryKeys = {
 }
 
 export function useCurrentMember() {
-  return useQuery({
+  return useQuery<
+    AuthenticatedMember | null
+  >({
     queryKey:
       authQueryKeys.currentMember,
     queryFn: getCurrentMember,
@@ -68,7 +72,10 @@ export function useLogout() {
     mutationFn: logout,
 
     onSuccess: () => {
-      queryClient.removeQueries()
+      queryClient.setQueryData(
+        authQueryKeys.currentMember,
+        null,
+      )
     },
   })
 }
