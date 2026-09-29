@@ -63,22 +63,42 @@ export function AppLayout() {
             >
               {member.role ===
                 'MANAGER' && (
-                <NavLink
-                  to="/manager"
-                  className={({
-                    isActive,
-                  }) =>
-                    [
-                      'rounded-lg px-3 py-2 text-sm font-semibold transition',
-                      isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
-                    ].join(' ')
-                  }
-                >
-                  管理画面
-                </NavLink>
-              )}
+                  <>
+                    <NavLink
+                      to="/manager"
+                      end
+                      className={({
+                        isActive,
+                      }) =>
+                        [
+                          'rounded-lg px-3 py-2 text-sm font-semibold transition',
+                          isActive
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+                        ].join(' ')
+                      }
+                    >
+                      管理画面
+                    </NavLink>
+                    <NavLink
+                      to="/manager/members"
+                      className={({
+                        isActive,
+                      }) =>
+                        [
+                          'rounded-lg px-3 py-2 text-sm font-semibold transition',
+                          isActive
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+                        ].join(' ')
+                      }
+                    >
+                      スタッフ
+                    </NavLink>
+                  </>
+
+
+                )}
 
               <NavLink
                 to="/schedule"
@@ -108,7 +128,7 @@ export function AppLayout() {
                 ID: {member.loginId}
                 {' · '}
                 {member.role ===
-                'MANAGER'
+                  'MANAGER'
                   ? 'Manager'
                   : 'Staff'}
               </p>

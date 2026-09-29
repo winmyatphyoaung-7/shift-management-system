@@ -6,6 +6,7 @@ import {
 
 import { LoginPage } from './pages/login-page.tsx'
 import { ChangePasswordPage } from './pages/change-password-page.tsx'
+import { ManagerMembersPage } from './pages/manager-members-page.tsx'
 import { RequireAuth } from './features/auth/require-auth.tsx'
 import { RequirePasswordChanged } from './features/auth/require-password-changed.tsx'
 import { RequireManager } from './features/auth/require-manager.tsx'
@@ -85,6 +86,11 @@ function App() {
                     description="マネージャー向け画面を準備中です。"
                   />
                 }
+              />
+
+              <Route
+                path="/manager/members"
+                element={<ManagerMembersPage />}
               />
             </Route>
 
