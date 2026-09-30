@@ -1,10 +1,11 @@
 import { apiClient } from '../../lib/api-client.ts'
 
 import type {
-    CreateMemberInput,
-    ListMembersResponse,
-    MemberResponse,
-    StoreMember,
+  CreateMemberInput,
+  ListMembersResponse,
+  MemberResponse,
+  StoreMember,
+  UpdateMemberInput,
 } from './member-types.ts'
 
 export async function getMembers(): Promise<
@@ -28,4 +29,17 @@ export async function createMember(
         )
 
     return response.data.data.member
+}
+
+export async function updateMember({
+  memberId,
+  body,
+}: UpdateMemberInput): Promise<StoreMember> {
+  const response =
+    await apiClient.patch<MemberResponse>(
+      `/members/${memberId}`,
+      body,
+    )
+
+  return response.data.data.member
 }

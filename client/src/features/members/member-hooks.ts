@@ -7,6 +7,7 @@ import {
 import {
   createMember,
   getMembers,
+  updateMember,
 } from './member-api.ts'
 
 export const memberQueryKeys = {
@@ -33,6 +34,22 @@ export function useCreateMember() {
 
   return useMutation({
     mutationFn: createMember,
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey:
+          memberQueryKeys.list,
+      })
+    },
+  })
+}
+
+export function useUpdateMember() {
+  const queryClient =
+    useQueryClient()
+
+  return useMutation({
+    mutationFn: updateMember,
 
     onSuccess: async () => {
       await queryClient.invalidateQueries({

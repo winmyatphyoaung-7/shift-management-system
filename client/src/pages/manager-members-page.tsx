@@ -1,8 +1,11 @@
 import { useState } from 'react'
 
 import { CreateMemberForm } from '../features/members/create-member-form.tsx'
-import { toApiError } from '../lib/api-error.ts'
+import { EditMemberForm } from '../features/members/edit-member-form.tsx'
 import { useMembers } from '../features/members/member-hooks.ts'
+import type { StoreMember } from '../features/members/member-types.ts'
+import { toApiError } from '../lib/api-error.ts'
+
 
 const memberColorClasses: Record<
   string,
@@ -48,6 +51,18 @@ export function ManagerMembersPage() {
   const [
     createdMemberName,
     setCreatedMemberName,
+  ] = useState<string | null>(null)
+
+  const [
+    selectedMember,
+    setSelectedMember,
+  ] = useState<StoreMember | null>(
+    null,
+  )
+
+  const [
+    updatedMemberName,
+    setUpdatedMemberName,
   ] = useState<string | null>(null)
 
   const {
@@ -142,7 +157,9 @@ export function ManagerMembersPage() {
             type="button"
             disabled={isCreateFormOpen}
             onClick={() => {
+              setSelectedMember(null)
               setCreatedMemberName(null)
+              setUpdatedMemberName(null)
               setIsCreateFormOpen(true)
             }}
             className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
@@ -182,6 +199,16 @@ export function ManagerMembersPage() {
         </p>
       )}
 
+      {updatedMemberName && (
+        <p
+          role="status"
+          className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700"
+        >
+          {updatedMemberName}
+          さんの情報を更新しました。
+        </p>
+      )}
+
       {isCreateFormOpen && (
         <CreateMemberForm
           onCancel={() => {
@@ -190,6 +217,22 @@ export function ManagerMembersPage() {
           onCreated={(member) => {
             setIsCreateFormOpen(false)
             setCreatedMemberName(
+              member.name,
+            )
+          }}
+        />
+      )}
+
+      {selectedMember && (
+        <EditMemberForm
+          key={selectedMember.id}
+          member={selectedMember}
+          onCancel={() => {
+            setSelectedMember(null)
+          }}
+          onUpdated={(member) => {
+            setSelectedMember(null)
+            setUpdatedMemberName(
               member.name,
             )
           }}
@@ -234,6 +277,9 @@ export function ManagerMembersPage() {
 
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     更新日
+                  </th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    操作
                   </th>
                 </tr>
               </thead>
@@ -309,6 +355,20 @@ export function ManagerMembersPage() {
                       {formatDate(
                         member.updatedAt,
                       )}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCreateFormOpen(false)
+                          setCreatedMemberName(null)
+                          setUpdatedMemberName(null)
+                          setSelectedMember(member)
+                        }}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        編集
+                      </button>
                     </td>
                   </tr>
                 ))}

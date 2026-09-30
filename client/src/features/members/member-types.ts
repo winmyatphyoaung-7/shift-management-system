@@ -52,6 +52,17 @@ export type CreateMemberInput = {
   colorKey: MemberColorKey
 }
 
+export type UpdateMemberBody = {
+  name?: string
+  loginId?: string
+  colorKey?: MemberColorKey
+}
+
+export type UpdateMemberInput = {
+  memberId: string
+  body: UpdateMemberBody
+}
+
 export type ListMembersResponse =
   ApiSuccessResponse<{
     members: StoreMember[]

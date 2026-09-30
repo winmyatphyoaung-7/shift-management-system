@@ -1,4 +1,8 @@
-import type { CreateMemberInput } from './member-types.ts'
+import type {
+  CreateMemberInput,
+  StoreMember,
+  UpdateMemberBody,
+} from './member-types.ts'
 
 export type CreateMemberFieldErrors =
   Partial<
@@ -56,4 +60,70 @@ export function validateCreateMemberInput(
   }
 
   return errors
+}
+
+export type EditMemberInput = Pick<
+  StoreMember,
+  'name' | 'loginId' | 'colorKey'
+>
+
+export type EditMemberFieldErrors =
+  Partial<
+    Record<
+      keyof EditMemberInput,
+      string
+    >
+  >
+
+export function validateEditMemberInput(
+  input: EditMemberInput,
+): EditMemberFieldErrors {
+  const errors: EditMemberFieldErrors =
+    {}
+
+  const trimmedName =
+    input.name.trim()
+
+  if (!trimmedName) {
+    errors.name =
+      '氏名を入力してください。'
+  } else if (trimmedName.length > 100) {
+    errors.name =
+      '氏名は100文字以内で入力してください。'
+  }
+
+  if (!/^\d{3}$/.test(input.loginId)) {
+    errors.loginId =
+      'ログインIDは3桁の数字で入力してください。'
+  }
+
+  return errors
+}
+
+export function buildUpdateMemberBody(
+  member: StoreMember,
+  input: EditMemberInput,
+): UpdateMemberBody {
+  const body: UpdateMemberBody = {}
+
+  const trimmedName =
+    input.name.trim()
+
+  if (trimmedName !== member.name) {
+    body.name = trimmedName
+  }
+
+  if (
+    input.loginId !== member.loginId
+  ) {
+    body.loginId = input.loginId
+  }
+
+  if (
+    input.colorKey !== member.colorKey
+  ) {
+    body.colorKey = input.colorKey
+  }
+
+  return body
 }
