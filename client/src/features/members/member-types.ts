@@ -1,6 +1,32 @@
 import type { ApiSuccessResponse } from '../../types/api.ts'
 import type { MemberRole } from '../auth/auth-types.ts'
 
+export const MEMBER_COLOR_KEYS = [
+  'red',
+  'orange',
+  'amber',
+  'yellow',
+  'lime',
+  'green',
+  'emerald',
+  'teal',
+  'cyan',
+  'sky',
+  'blue',
+  'indigo',
+  'violet',
+  'purple',
+  'fuchsia',
+  'pink',
+  'rose',
+  'slate',
+  'zinc',
+  'stone',
+] as const
+
+export type MemberColorKey =
+  (typeof MEMBER_COLOR_KEYS)[number]
+
 export type MemberStatus =
   | 'ACTIVE'
   | 'INACTIVE'
@@ -12,13 +38,26 @@ export type StoreMember = {
   name: string
   role: MemberRole
   status: MemberStatus
-  colorKey: string
+  colorKey: MemberColorKey
   mustChangePassword: boolean
   createdAt: string
   updatedAt: string
 }
 
+export type CreateMemberInput = {
+  name: string
+  loginId: string
+  temporaryPassword: string
+  confirmPassword: string
+  colorKey: MemberColorKey
+}
+
 export type ListMembersResponse =
   ApiSuccessResponse<{
     members: StoreMember[]
+  }>
+
+export type MemberResponse =
+  ApiSuccessResponse<{
+    member: StoreMember
   }>

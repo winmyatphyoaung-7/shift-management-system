@@ -1,6 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 
-import { getMembers } from './member-api.ts'
+import {
+  createMember,
+  getMembers,
+} from './member-api.ts'
 
 export const memberQueryKeys = {
   all: ['members'] as const,
@@ -17,5 +24,21 @@ export function useMembers() {
     queryFn: getMembers,
     staleTime: 60 * 1000,
     retry: false,
+  })
+}
+
+export function useCreateMember() {
+  const queryClient =
+    useQueryClient()
+
+  return useMutation({
+    mutationFn: createMember,
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey:
+          memberQueryKeys.list,
+      })
+    },
   })
 }

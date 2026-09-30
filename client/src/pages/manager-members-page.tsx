@@ -1,3 +1,6 @@
+import { useState } from 'react'
+
+import { CreateMemberForm } from '../features/members/create-member-form.tsx'
 import { toApiError } from '../lib/api-error.ts'
 import { useMembers } from '../features/members/member-hooks.ts'
 
@@ -37,6 +40,16 @@ function formatDate(value: string) {
 }
 
 export function ManagerMembersPage() {
+  const [
+    isCreateFormOpen,
+    setIsCreateFormOpen,
+  ] = useState(false)
+
+  const [
+    createdMemberName,
+    setCreatedMemberName,
+  ] = useState<string | null>(null)
+
   const {
     data: members,
     error,
@@ -123,7 +136,20 @@ export function ManagerMembersPage() {
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+
+          <button
+            type="button"
+            disabled={isCreateFormOpen}
+            onClick={() => {
+              setCreatedMemberName(null)
+              setIsCreateFormOpen(true)
+            }}
+            className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+          >
+            スタッフを追加
+          </button>
+
           <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm">
             <p className="text-xs font-semibold text-slate-500">
               全メンバー
@@ -145,6 +171,30 @@ export function ManagerMembersPage() {
           </div>
         </div>
       </div>
+
+      {createdMemberName && (
+        <p
+          role="status"
+          className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700"
+        >
+          {createdMemberName}
+          さんのStaffアカウントを作成しました。
+        </p>
+      )}
+
+      {isCreateFormOpen && (
+        <CreateMemberForm
+          onCancel={() => {
+            setIsCreateFormOpen(false)
+          }}
+          onCreated={(member) => {
+            setIsCreateFormOpen(false)
+            setCreatedMemberName(
+              member.name,
+            )
+          }}
+        />
+      )}
 
       {members.length === 0 ? (
         <div className="mt-8 rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">
@@ -200,9 +250,9 @@ export function ManagerMembersPage() {
                           className={[
                             'size-3 rounded-full',
                             memberColorClasses[
-                              member.colorKey
+                            member.colorKey
                             ] ??
-                              'bg-slate-400',
+                            'bg-slate-400',
                           ].join(' ')}
                           aria-hidden="true"
                         />
@@ -226,7 +276,7 @@ export function ManagerMembersPage() {
                     <td className="whitespace-nowrap px-6 py-4">
                       <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                         {member.role ===
-                        'MANAGER'
+                          'MANAGER'
                           ? 'Manager'
                           : 'Staff'}
                       </span>
@@ -237,13 +287,13 @@ export function ManagerMembersPage() {
                         className={[
                           'rounded-full px-3 py-1 text-xs font-semibold',
                           member.status ===
-                          'ACTIVE'
+                            'ACTIVE'
                             ? 'bg-emerald-50 text-emerald-700'
                             : 'bg-slate-100 text-slate-600',
                         ].join(' ')}
                       >
                         {member.status ===
-                        'ACTIVE'
+                          'ACTIVE'
                           ? '有効'
                           : '無効'}
                       </span>
