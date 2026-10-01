@@ -63,6 +63,16 @@ export type UpdateMemberInput = {
   body: UpdateMemberBody
 }
 
+export type ResetMemberPasswordBody = {
+  temporaryPassword: string
+  confirmPassword: string
+}
+
+export type ResetMemberPasswordInput = {
+  memberId: string
+  body: ResetMemberPasswordBody
+}
+
 export type ListMembersResponse =
   ApiSuccessResponse<{
     members: StoreMember[]

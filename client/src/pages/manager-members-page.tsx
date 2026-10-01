@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { CreateMemberForm } from '../features/members/create-member-form.tsx'
 import { EditMemberForm } from '../features/members/edit-member-form.tsx'
+import { ResetMemberPasswordForm } from '../features/members/reset-member-password-form.tsx'
 import { useMembers } from '../features/members/member-hooks.ts'
 import type { StoreMember } from '../features/members/member-types.ts'
 import { toApiError } from '../lib/api-error.ts'
@@ -65,6 +66,17 @@ export function ManagerMembersPage() {
     setUpdatedMemberName,
   ] = useState<string | null>(null)
 
+  const [
+    passwordResetMember,
+    setPasswordResetMember,
+  ] = useState<StoreMember | null>(
+    null,
+  )
+
+  const [
+    resetPasswordMemberName,
+    setResetPasswordMemberName,
+  ] = useState<string | null>(null)
   const {
     data: members,
     error,
@@ -158,8 +170,10 @@ export function ManagerMembersPage() {
             disabled={isCreateFormOpen}
             onClick={() => {
               setSelectedMember(null)
+              setPasswordResetMember(null)
               setCreatedMemberName(null)
               setUpdatedMemberName(null)
+              setResetPasswordMemberName(null)
               setIsCreateFormOpen(true)
             }}
             className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
@@ -209,6 +223,16 @@ export function ManagerMembersPage() {
         </p>
       )}
 
+      {resetPasswordMemberName && (
+        <p
+          role="status"
+          className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700"
+        >
+          {resetPasswordMemberName}
+          さんの仮パスワードを再設定しました。
+        </p>
+      )}
+
       {isCreateFormOpen && (
         <CreateMemberForm
           onCancel={() => {
@@ -233,6 +257,22 @@ export function ManagerMembersPage() {
           onUpdated={(member) => {
             setSelectedMember(null)
             setUpdatedMemberName(
+              member.name,
+            )
+          }}
+        />
+      )}
+
+      {passwordResetMember && (
+        <ResetMemberPasswordForm
+          key={passwordResetMember.id}
+          member={passwordResetMember}
+          onCancel={() => {
+            setPasswordResetMember(null)
+          }}
+          onReset={(member) => {
+            setPasswordResetMember(null)
+            setResetPasswordMemberName(
               member.name,
             )
           }}
@@ -357,18 +397,44 @@ export function ManagerMembersPage() {
                       )}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCreateFormOpen(false)
-                          setCreatedMemberName(null)
-                          setUpdatedMemberName(null)
-                          setSelectedMember(member)
-                        }}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-                      >
-                        編集
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCreateFormOpen(false)
+                            setPasswordResetMember(null)
+                            setCreatedMemberName(null)
+                            setUpdatedMemberName(null)
+                            setResetPasswordMemberName(null)
+                            setSelectedMember(member)
+                          }}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          編集
+                        </button>
+
+                        {member.role === 'STAFF' &&
+                          member.status === 'ACTIVE' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsCreateFormOpen(false)
+                                setSelectedMember(null)
+                                setCreatedMemberName(null)
+                                setUpdatedMemberName(null)
+                                setResetPasswordMemberName(
+                                  null,
+                                )
+                                setPasswordResetMember(
+                                  member,
+                                )
+                              }}
+                              className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50"
+                            >
+                              パスワード再設定
+                            </button>
+                          )}
+                      </div>
                     </td>
                   </tr>
                 ))}

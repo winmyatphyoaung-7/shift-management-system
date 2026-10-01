@@ -1,8 +1,51 @@
 import type {
   CreateMemberInput,
+  ResetMemberPasswordBody,
   StoreMember,
   UpdateMemberBody,
 } from './member-types.ts'
+
+export type ResetMemberPasswordFieldErrors =
+  Partial<
+    Record<
+      keyof ResetMemberPasswordBody,
+      string
+    >
+  >
+
+export function validateResetMemberPasswordInput(
+  input: ResetMemberPasswordBody,
+): ResetMemberPasswordFieldErrors {
+  const errors:
+    ResetMemberPasswordFieldErrors = {}
+
+  if (
+    input.temporaryPassword.length < 12
+  ) {
+    errors.temporaryPassword =
+      '仮パスワードは12文字以上で入力してください。'
+  } else if (
+    new TextEncoder().encode(
+      input.temporaryPassword,
+    ).length > 72
+  ) {
+    errors.temporaryPassword =
+      '仮パスワードはUTF-8で72バイト以内にしてください。'
+  }
+
+  if (!input.confirmPassword) {
+    errors.confirmPassword =
+      '確認用パスワードを入力してください。'
+  } else if (
+    input.confirmPassword !==
+    input.temporaryPassword
+  ) {
+    errors.confirmPassword =
+      'パスワードが一致しません。'
+  }
+
+  return errors
+}
 
 export type CreateMemberFieldErrors =
   Partial<
@@ -34,30 +77,15 @@ export function validateCreateMemberInput(
       'ログインIDは3桁の数字で入力してください。'
   }
 
-  if (
-    input.temporaryPassword.length < 12
-  ) {
-    errors.temporaryPassword =
-      '仮パスワードは12文字以上で入力してください。'
-  } else if (
-    new TextEncoder().encode(
-      input.temporaryPassword,
-    ).length > 72
-  ) {
-    errors.temporaryPassword =
-      '仮パスワードはUTF-8で72バイト以内にしてください。'
-  }
-
-  if (!input.confirmPassword) {
-    errors.confirmPassword =
-      '確認用パスワードを入力してください。'
-  } else if (
-    input.confirmPassword !==
-    input.temporaryPassword
-  ) {
-    errors.confirmPassword =
-      'パスワードが一致しません。'
-  }
+  Object.assign(
+    errors,
+    validateResetMemberPasswordInput({
+      temporaryPassword:
+        input.temporaryPassword,
+      confirmPassword:
+        input.confirmPassword,
+    }),
+  )
 
   return errors
 }
