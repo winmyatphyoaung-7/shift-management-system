@@ -8,7 +8,9 @@ import type {
   ResetMemberPasswordInput,
   StoreMember,
   UpdateMemberInput,
+  DeactivateMemberInput,
 } from './member-types.ts'
+
 
 export async function getMembers(): Promise<
   StoreMember[]
@@ -54,6 +56,17 @@ export async function resetMemberPassword({
     await apiClient.post<ApiMessageResponse>(
       `/members/${memberId}/reset-password`,
       body,
+    )
+
+  return response.data.message
+}
+
+export async function deactivateMember({
+  memberId,
+}: DeactivateMemberInput): Promise<string> {
+  const response =
+    await apiClient.post<ApiMessageResponse>(
+      `/members/${memberId}/deactivate`,
     )
 
   return response.data.message

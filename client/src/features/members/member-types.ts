@@ -73,6 +73,10 @@ export type ResetMemberPasswordInput = {
   body: ResetMemberPasswordBody
 }
 
+export type DeactivateMemberInput = {
+  memberId: string
+}
+
 export type ListMembersResponse =
   ApiSuccessResponse<{
     members: StoreMember[]

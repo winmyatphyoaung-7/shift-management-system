@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { CreateMemberForm } from '../features/members/create-member-form.tsx'
 import { EditMemberForm } from '../features/members/edit-member-form.tsx'
 import { ResetMemberPasswordForm } from '../features/members/reset-member-password-form.tsx'
+import { DeactivateMemberConfirmation } from '../features/members/deactivate-member-confirmation.tsx'
 import { useMembers } from '../features/members/member-hooks.ts'
 import type { StoreMember } from '../features/members/member-types.ts'
 import { toApiError } from '../lib/api-error.ts'
@@ -77,6 +78,19 @@ export function ManagerMembersPage() {
     resetPasswordMemberName,
     setResetPasswordMemberName,
   ] = useState<string | null>(null)
+
+  const [
+    memberToDeactivate,
+    setMemberToDeactivate,
+  ] = useState<StoreMember | null>(
+    null,
+  )
+
+  const [
+    deactivatedMemberName,
+    setDeactivatedMemberName,
+  ] = useState<string | null>(null)
+
   const {
     data: members,
     error,
@@ -175,6 +189,8 @@ export function ManagerMembersPage() {
               setUpdatedMemberName(null)
               setResetPasswordMemberName(null)
               setIsCreateFormOpen(true)
+              setMemberToDeactivate(null)
+              setDeactivatedMemberName(null)
             }}
             className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
           >
@@ -233,6 +249,16 @@ export function ManagerMembersPage() {
         </p>
       )}
 
+      {deactivatedMemberName && (
+        <p
+          role="status"
+          className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700"
+        >
+          {deactivatedMemberName}
+          さんを無効化しました。
+        </p>
+      )}
+
       {isCreateFormOpen && (
         <CreateMemberForm
           onCancel={() => {
@@ -273,6 +299,22 @@ export function ManagerMembersPage() {
           onReset={(member) => {
             setPasswordResetMember(null)
             setResetPasswordMemberName(
+              member.name,
+            )
+          }}
+        />
+      )}
+
+      {memberToDeactivate && (
+        <DeactivateMemberConfirmation
+          key={memberToDeactivate.id}
+          member={memberToDeactivate}
+          onCancel={() => {
+            setMemberToDeactivate(null)
+          }}
+          onDeactivated={(member) => {
+            setMemberToDeactivate(null)
+            setDeactivatedMemberName(
               member.name,
             )
           }}
@@ -407,6 +449,8 @@ export function ManagerMembersPage() {
                             setUpdatedMemberName(null)
                             setResetPasswordMemberName(null)
                             setSelectedMember(member)
+                            setMemberToDeactivate(null)
+                            setDeactivatedMemberName(null)
                           }}
                           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                         >
@@ -428,10 +472,37 @@ export function ManagerMembersPage() {
                                 setPasswordResetMember(
                                   member,
                                 )
+                                setMemberToDeactivate(null)
+                                setDeactivatedMemberName(null)
                               }}
                               className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50"
                             >
                               パスワード再設定
+                            </button>
+                          )}
+                        {member.role === 'STAFF' &&
+                          member.status === 'ACTIVE' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsCreateFormOpen(false)
+                                setSelectedMember(null)
+                                setPasswordResetMember(null)
+                                setCreatedMemberName(null)
+                                setUpdatedMemberName(null)
+                                setResetPasswordMemberName(
+                                  null,
+                                )
+                                setDeactivatedMemberName(
+                                  null,
+                                )
+                                setMemberToDeactivate(
+                                  member,
+                                )
+                              }}
+                              className="rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+                            >
+                              無効化
                             </button>
                           )}
                       </div>

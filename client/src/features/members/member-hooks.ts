@@ -9,6 +9,7 @@ import {
   getMembers,
   updateMember,
   resetMemberPassword,
+  deactivateMember,
 } from './member-api.ts'
 
 export const memberQueryKeys = {
@@ -67,6 +68,22 @@ export function useResetMemberPassword() {
 
   return useMutation({
     mutationFn: resetMemberPassword,
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey:
+          memberQueryKeys.list,
+      })
+    },
+  })
+}
+
+export function useDeactivateMember() {
+  const queryClient =
+    useQueryClient()
+
+  return useMutation({
+    mutationFn: deactivateMember,
 
     onSuccess: async () => {
       await queryClient.invalidateQueries({
