@@ -9,7 +9,12 @@ import type {
     CreateShiftsResult,
     UpdateShiftInput,
     UpdateShiftResponse,
+    RemoveShiftInput,
 } from './schedule-types.ts'
+
+import type {
+  ApiMessageResponse,
+} from '../../types/api.ts'
 
 export async function getScheduleDays(
     range: ScheduleDateRange,
@@ -48,4 +53,15 @@ export async function updateShift({
     )
 
   return response.data.data
+}
+
+export async function removeShift({
+  shiftId,
+}: RemoveShiftInput): Promise<string> {
+  const response =
+    await apiClient.delete<ApiMessageResponse>(
+      `/shifts/${shiftId}`,
+    )
+
+  return response.data.message
 }

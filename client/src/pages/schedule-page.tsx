@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useCurrentMember } from '../features/auth/auth-hooks.ts'
 import { CreateShiftForm } from '../features/schedule/create-shift-form.tsx'
 import { EditShiftForm } from '../features/schedule/edit-shift-form.tsx'
+import { RemoveShiftConfirmation } from '../features/schedule/remove-shift-confirmation.tsx'
 import {
     addDays,
     getWeekRange,
@@ -13,6 +14,7 @@ import { useScheduleDays } from '../features/schedule/schedule-hooks.ts'
 import type {
     ScheduleCoveragePreset,
     ScheduleDateRange,
+    ScheduleDayStatus,
     ScheduleShift,
 } from '../features/schedule/schedule-types.ts'
 import { toApiError } from '../lib/api-error.ts'
@@ -30,6 +32,15 @@ type EditingShift = {
 type UpdatedShiftSummary = {
     adjacentWarningCount: number
 }
+type RemovingShift = {
+    scheduleDate: string
+    scheduleStatus: ScheduleDayStatus
+    shift: ScheduleShift
+}
+
+type RemovedShiftAction =
+    | 'DELETED'
+    | 'CANCELLED'
 
 const dayFormatter =
     new Intl.DateTimeFormat('ja-JP', {
@@ -118,6 +129,21 @@ export function SchedulePage() {
         setUpdatedShiftSummary,
     ] =
         useState<UpdatedShiftSummary | null>(
+            null,
+        )
+
+    const [
+        removingShift,
+        setRemovingShift,
+    ] = useState<RemovingShift | null>(
+        null,
+    )
+
+    const [
+        removedShiftAction,
+        setRemovedShiftAction,
+    ] =
+        useState<RemovedShiftAction | null>(
             null,
         )
 
@@ -211,6 +237,8 @@ export function SchedulePage() {
                             setCreatedShiftSummary(null)
                             setEditingShift(null)
                             setUpdatedShiftSummary(null)
+                            setRemovingShift(null)
+                            setRemovedShiftAction(null)
 
                             setRange((current) =>
                                 shiftDateRange(
@@ -231,6 +259,8 @@ export function SchedulePage() {
                             setCreatedShiftSummary(null)
                             setEditingShift(null)
                             setUpdatedShiftSummary(null)
+                            setRemovingShift(null)
+                            setRemovedShiftAction(null)
                             setRange(getWeekRange())
                         }}
                         className="rounded-xl border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
@@ -246,6 +276,8 @@ export function SchedulePage() {
                             setCreatedShiftSummary(null)
                             setEditingShift(null)
                             setUpdatedShiftSummary(null)
+                            setRemovingShift(null)
+                            setRemovedShiftAction(null)
 
                             setRange((current) =>
                                 shiftDateRange(
@@ -327,6 +359,17 @@ export function SchedulePage() {
                 </div>
             )}
 
+            {removedShiftAction && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"
+                >
+                    {removedShiftAction === 'DELETED'
+                        ? 'Draftシフトを削除しました。'
+                        : '公開済みシフトをキャンセルしました。'}
+                </div>
+            )}
+
             {member.role === 'MANAGER' &&
                 createShiftDate && (
                     <CreateShiftForm
@@ -372,6 +415,33 @@ export function SchedulePage() {
                                 adjacentWarningCount:
                                     result.warnings.length,
                             })
+                        }}
+                    />
+                )}
+
+            {member.role === 'MANAGER' &&
+                removingShift && (
+                    <RemoveShiftConfirmation
+                        key={removingShift.shift.id}
+                        scheduleDate={
+                            removingShift.scheduleDate
+                        }
+                        scheduleStatus={
+                            removingShift.scheduleStatus
+                        }
+                        shift={removingShift.shift}
+                        onCancel={() => {
+                            setRemovingShift(null)
+                        }}
+                        onRemoved={() => {
+                            const action =
+                                removingShift.scheduleStatus ===
+                                    'DRAFT'
+                                    ? 'DELETED'
+                                    : 'CANCELLED'
+
+                            setRemovingShift(null)
+                            setRemovedShiftAction(action)
                         }}
                     />
                 )}
@@ -462,6 +532,8 @@ export function SchedulePage() {
                                                 setCreateShiftDate(date)
                                                 setEditingShift(null)
                                                 setUpdatedShiftSummary(null)
+                                                setRemovingShift(null)
+                                                setRemovedShiftAction(null)
                                             }}
                                             className="mt-3 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                                         >
@@ -596,6 +668,35 @@ export function SchedulePage() {
                                                                             className="mt-3 w-full rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
                                                                         >
                                                                             編集
+                                                                        </button>
+
+                                                                    )}
+                                                                {member.role === 'MANAGER' &&
+                                                                    shift.status === 'ACTIVE' &&
+                                                                    new Date(
+                                                                        shift.startAt,
+                                                                    ).getTime() > Date.now() && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setCreateShiftDate(null)
+                                                                                setEditingShift(null)
+                                                                                setCreatedShiftSummary(null)
+                                                                                setUpdatedShiftSummary(null)
+                                                                                setRemovedShiftAction(null)
+
+                                                                                setRemovingShift({
+                                                                                    scheduleDate: date,
+                                                                                    scheduleStatus:
+                                                                                        scheduleDay.status,
+                                                                                    shift,
+                                                                                })
+                                                                            }}
+                                                                            className="mt-2 w-full rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                                                                        >
+                                                                            {scheduleDay.status === 'DRAFT'
+                                                                                ? '削除'
+                                                                                : 'キャンセル'}
                                                                         </button>
                                                                     )}
                                                             </div>

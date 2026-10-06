@@ -154,3 +154,7 @@ export type UpdateShiftResult = {
 
 export type UpdateShiftResponse =
     ApiSuccessResponse<UpdateShiftResult>
+
+export type RemoveShiftInput = {
+    shiftId: string
+}
