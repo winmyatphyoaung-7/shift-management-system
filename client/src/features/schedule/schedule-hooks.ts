@@ -9,6 +9,7 @@ import {
     getScheduleDays,
     updateShift,
     removeShift,
+    publishSchedule,
 } from './schedule-api.ts'
 import type { ScheduleDateRange } from './schedule-types.ts'
 
@@ -72,17 +73,33 @@ export function useUpdateShift() {
 }
 
 export function useRemoveShift() {
-  const queryClient =
-    useQueryClient()
+    const queryClient =
+        useQueryClient()
 
-  return useMutation({
-    mutationFn: removeShift,
+    return useMutation({
+        mutationFn: removeShift,
 
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey:
-          scheduleQueryKeys.all,
-      })
-    },
-  })
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey:
+                    scheduleQueryKeys.all,
+            })
+        },
+    })
+}
+
+export function usePublishSchedule() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn: publishSchedule,
+
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey:
+                    scheduleQueryKeys.all,
+            })
+        },
+    })
 }

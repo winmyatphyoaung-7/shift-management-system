@@ -158,3 +158,31 @@ export type UpdateShiftResponse =
 export type RemoveShiftInput = {
     shiftId: string
 }
+export type PublishScheduleInput =
+    ScheduleDateRange
+
+export type PublishedScheduleDay = {
+    id: string
+    scheduleDate: string
+    status: ScheduleDayStatus
+    publishedAt: string | null
+    publishedByMembershipId:
+    | string
+    | null
+    shiftCount: number
+    coverageWarnings:
+    UnderstaffedWarning[]
+}
+
+export type PublishScheduleResult = {
+    publishedDays:
+    PublishedScheduleDay[]
+    summary: {
+        publishedDateCount: number
+        shiftCount: number
+        coverageWarningCount: number
+    }
+}
+
+export type PublishScheduleResponse =
+    ApiSuccessResponse<PublishScheduleResult>

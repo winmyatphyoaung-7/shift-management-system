@@ -10,10 +10,13 @@ import type {
     UpdateShiftInput,
     UpdateShiftResponse,
     RemoveShiftInput,
+    PublishScheduleInput,
+    PublishScheduleResponse,
+    PublishScheduleResult,
 } from './schedule-types.ts'
 
 import type {
-  ApiMessageResponse,
+    ApiMessageResponse,
 } from '../../types/api.ts'
 
 export async function getScheduleDays(
@@ -43,25 +46,37 @@ export async function createShifts(
 }
 
 export async function updateShift({
-  shiftId,
-  body,
+    shiftId,
+    body,
 }: UpdateShiftInput) {
-  const response =
-    await apiClient.patch<UpdateShiftResponse>(
-      `/shifts/${shiftId}`,
-      body,
-    )
+    const response =
+        await apiClient.patch<UpdateShiftResponse>(
+            `/shifts/${shiftId}`,
+            body,
+        )
 
-  return response.data.data
+    return response.data.data
 }
 
 export async function removeShift({
-  shiftId,
+    shiftId,
 }: RemoveShiftInput): Promise<string> {
-  const response =
-    await apiClient.delete<ApiMessageResponse>(
-      `/shifts/${shiftId}`,
-    )
+    const response =
+        await apiClient.delete<ApiMessageResponse>(
+            `/shifts/${shiftId}`,
+        )
 
-  return response.data.message
+    return response.data.message
+}
+
+export async function publishSchedule(
+    input: PublishScheduleInput,
+): Promise<PublishScheduleResult> {
+    const response =
+        await apiClient.post<PublishScheduleResponse>(
+            '/schedule-days/publish',
+            input,
+        )
+
+    return response.data.data
 }

@@ -7,6 +7,7 @@ import { useCurrentMember } from '../features/auth/auth-hooks.ts'
 import { CreateShiftForm } from '../features/schedule/create-shift-form.tsx'
 import { EditShiftForm } from '../features/schedule/edit-shift-form.tsx'
 import { RemoveShiftConfirmation } from '../features/schedule/remove-shift-confirmation.tsx'
+import { PublishScheduleForm } from '../features/schedule/publish-schedule-form.tsx'
 import { ScheduleDayCard } from '../features/schedule/schedule-day-card.tsx'
 import { ScheduleWeekHeader } from '../features/schedule/schedule-week-header.tsx'
 import {
@@ -20,6 +21,7 @@ import type {
     ScheduleDateRange,
     ScheduleDayStatus,
     ScheduleShift,
+    PublishScheduleResult,
 } from '../features/schedule/schedule-types.ts'
 import { toApiError } from '../lib/api-error.ts'
 
@@ -115,6 +117,17 @@ export function SchedulePage() {
         useState<RemovedShiftAction | null>(
             null,
         )
+    const [
+        isPublishFormOpen,
+        setIsPublishFormOpen,
+    ] = useState(false)
+
+    const [
+        publishedSummary,
+        setPublishedSummary,
+    ] = useState<
+        PublishScheduleResult['summary'] | null
+    >(null)
 
     const { data: member } =
         useCurrentMember()
@@ -186,6 +199,8 @@ export function SchedulePage() {
         setCreatedShiftSummary(null)
         setUpdatedShiftSummary(null)
         setRemovedShiftAction(null)
+        setIsPublishFormOpen(false)
+        setPublishedSummary(null)
     }
 
     function moveWeek(dayOffset: number) {
@@ -222,6 +237,10 @@ export function SchedulePage() {
                 }
                 onNextWeek={() => {
                     moveWeek(7)
+                }}
+                onPublishSchedule={() => {
+                    resetOperationState()
+                    setIsPublishFormOpen(true)
                 }}
             />
 
@@ -286,6 +305,55 @@ export function SchedulePage() {
                         : '公開済みシフトをキャンセルしました。'}
                 </div>
             )}
+
+            {publishedSummary && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+                >
+                    <p className="font-semibold">
+                        {
+                            publishedSummary
+                                .publishedDateCount
+                        }
+                        日分のシフトを公開しました。
+                    </p>
+
+                    <p className="mt-1">
+                        公開シフト：
+                        {publishedSummary.shiftCount}
+                        件
+                    </p>
+
+                    {publishedSummary
+                        .coverageWarningCount > 0 && (
+                            <p className="mt-1 text-amber-700">
+                                人員不足の警告：
+                                {
+                                    publishedSummary
+                                        .coverageWarningCount
+                                }
+                                件
+                            </p>
+                        )}
+                </div>
+            )}
+
+            {member.role === 'MANAGER' &&
+                isPublishFormOpen && (
+                    <PublishScheduleForm
+                        initialRange={range}
+                        onCancel={() => {
+                            setIsPublishFormOpen(false)
+                        }}
+                        onPublished={(result) => {
+                            setIsPublishFormOpen(false)
+                            setPublishedSummary(
+                                result.summary,
+                            )
+                        }}
+                    />
+                )}
 
             {member.role === 'MANAGER' &&
                 createShiftDate && (
@@ -423,21 +491,11 @@ export function SchedulePage() {
                                 }
                                 currentTime={currentTime}
                                 onCreateShift={() => {
+                                    resetOperationState()
                                     setCreateShiftDate(date)
-                                    setEditingShift(null)
-                                    setRemovingShift(null)
-
-                                    setCreatedShiftSummary(null)
-                                    setUpdatedShiftSummary(null)
-                                    setRemovedShiftAction(null)
                                 }}
                                 onEditShift={(shift) => {
-                                    setCreateShiftDate(null)
-                                    setRemovingShift(null)
-
-                                    setCreatedShiftSummary(null)
-                                    setUpdatedShiftSummary(null)
-                                    setRemovedShiftAction(null)
+                                    resetOperationState()
 
                                     setEditingShift({
                                         scheduleDate: date,
@@ -449,12 +507,7 @@ export function SchedulePage() {
                                         return
                                     }
 
-                                    setCreateShiftDate(null)
-                                    setEditingShift(null)
-
-                                    setCreatedShiftSummary(null)
-                                    setUpdatedShiftSummary(null)
-                                    setRemovedShiftAction(null)
+                                    resetOperationState()
 
                                     setRemovingShift({
                                         scheduleDate: date,
