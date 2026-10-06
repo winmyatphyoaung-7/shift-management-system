@@ -7,6 +7,8 @@ import type {
     CreateShiftsInput,
     CreateShiftsResponse,
     CreateShiftsResult,
+    UpdateShiftInput,
+    UpdateShiftResponse,
 } from './schedule-types.ts'
 
 export async function getScheduleDays(
@@ -33,4 +35,17 @@ export async function createShifts(
         )
 
     return response.data.data
+}
+
+export async function updateShift({
+  shiftId,
+  body,
+}: UpdateShiftInput) {
+  const response =
+    await apiClient.patch<UpdateShiftResponse>(
+      `/shifts/${shiftId}`,
+      body,
+    )
+
+  return response.data.data
 }

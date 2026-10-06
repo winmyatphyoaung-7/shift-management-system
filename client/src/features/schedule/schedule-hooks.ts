@@ -7,6 +7,7 @@ import {
 import {
     createShifts,
     getScheduleDays,
+    updateShift,
 } from './schedule-api.ts'
 import type { ScheduleDateRange } from './schedule-types.ts'
 
@@ -43,6 +44,22 @@ export function useCreateShifts() {
 
     return useMutation({
         mutationFn: createShifts,
+
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey:
+                    scheduleQueryKeys.all,
+            })
+        },
+    })
+}
+
+export function useUpdateShift() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn: updateShift,
 
         onSuccess: async () => {
             await queryClient.invalidateQueries({

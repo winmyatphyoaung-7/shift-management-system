@@ -133,3 +133,24 @@ export type CreateShiftsResult = {
 
 export type CreateShiftsResponse =
     ApiSuccessResponse<CreateShiftsResult>
+
+export type UpdateShiftBody = {
+    assigneeMembershipId?: string
+    shiftPresetId?: string | null
+    startAt?: string
+    endAt?: string
+    note?: string | null
+}
+
+export type UpdateShiftInput = {
+    shiftId: string
+    body: UpdateShiftBody
+}
+
+export type UpdateShiftResult = {
+    shift: CreatedShift
+    warnings: AdjacentShiftWarning[]
+}
+
+export type UpdateShiftResponse =
+    ApiSuccessResponse<UpdateShiftResult>

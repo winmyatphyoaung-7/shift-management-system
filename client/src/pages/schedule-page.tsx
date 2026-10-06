@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { useCurrentMember } from '../features/auth/auth-hooks.ts'
 import { CreateShiftForm } from '../features/schedule/create-shift-form.tsx'
+import { EditShiftForm } from '../features/schedule/edit-shift-form.tsx'
 import {
     addDays,
     getWeekRange,
@@ -12,12 +13,21 @@ import { useScheduleDays } from '../features/schedule/schedule-hooks.ts'
 import type {
     ScheduleCoveragePreset,
     ScheduleDateRange,
+    ScheduleShift,
 } from '../features/schedule/schedule-types.ts'
 import { toApiError } from '../lib/api-error.ts'
 
 
 type CreatedShiftSummary = {
     shiftCount: number
+    adjacentWarningCount: number
+}
+type EditingShift = {
+    scheduleDate: string
+    shift: ScheduleShift
+}
+
+type UpdatedShiftSummary = {
     adjacentWarningCount: number
 }
 
@@ -93,6 +103,21 @@ export function SchedulePage() {
         setCreatedShiftSummary,
     ] =
         useState<CreatedShiftSummary | null>(
+            null,
+        )
+
+    const [
+        editingShift,
+        setEditingShift,
+    ] = useState<EditingShift | null>(
+        null,
+    )
+
+    const [
+        updatedShiftSummary,
+        setUpdatedShiftSummary,
+    ] =
+        useState<UpdatedShiftSummary | null>(
             null,
         )
 
@@ -184,6 +209,8 @@ export function SchedulePage() {
 
                             setCreateShiftDate(null)
                             setCreatedShiftSummary(null)
+                            setEditingShift(null)
+                            setUpdatedShiftSummary(null)
 
                             setRange((current) =>
                                 shiftDateRange(
@@ -202,6 +229,8 @@ export function SchedulePage() {
                         onClick={() => {
                             setCreateShiftDate(null)
                             setCreatedShiftSummary(null)
+                            setEditingShift(null)
+                            setUpdatedShiftSummary(null)
                             setRange(getWeekRange())
                         }}
                         className="rounded-xl border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
@@ -215,6 +244,8 @@ export function SchedulePage() {
 
                             setCreateShiftDate(null)
                             setCreatedShiftSummary(null)
+                            setEditingShift(null)
+                            setUpdatedShiftSummary(null)
 
                             setRange((current) =>
                                 shiftDateRange(
@@ -273,6 +304,29 @@ export function SchedulePage() {
                 </div>
             )}
 
+            {updatedShiftSummary && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+                >
+                    <p className="font-semibold">
+                        シフトを更新しました。
+                    </p>
+
+                    {updatedShiftSummary
+                        .adjacentWarningCount > 0 && (
+                            <p className="mt-1 text-amber-700">
+                                連続するシフトの警告：
+                                {
+                                    updatedShiftSummary
+                                        .adjacentWarningCount
+                                }
+                                件
+                            </p>
+                        )}
+                </div>
+            )}
+
             {member.role === 'MANAGER' &&
                 createShiftDate && (
                     <CreateShiftForm
@@ -292,6 +346,29 @@ export function SchedulePage() {
                             setCreatedShiftSummary({
                                 shiftCount:
                                     result.shifts.length,
+                                adjacentWarningCount:
+                                    result.warnings.length,
+                            })
+                        }}
+                    />
+                )}
+
+            {member.role === 'MANAGER' &&
+                editingShift && (
+                    <EditShiftForm
+                        key={editingShift.shift.id}
+                        scheduleDate={
+                            editingShift.scheduleDate
+                        }
+                        shift={editingShift.shift}
+                        presets={availablePresets}
+                        onCancel={() => {
+                            setEditingShift(null)
+                        }}
+                        onUpdated={(result) => {
+                            setEditingShift(null)
+
+                            setUpdatedShiftSummary({
                                 adjacentWarningCount:
                                     result.warnings.length,
                             })
@@ -381,12 +458,10 @@ export function SchedulePage() {
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                setCreatedShiftSummary(
-                                                    null,
-                                                )
-                                                setCreateShiftDate(
-                                                    date,
-                                                )
+                                                setCreatedShiftSummary(null)
+                                                setCreateShiftDate(date)
+                                                setEditingShift(null)
+                                                setUpdatedShiftSummary(null)
                                             }}
                                             className="mt-3 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                                         >
@@ -499,6 +574,29 @@ export function SchedulePage() {
                                                                         <p className="mt-2 text-xs font-semibold text-red-600">
                                                                             キャンセル済み
                                                                         </p>
+                                                                    )}
+
+                                                                {member.role === 'MANAGER' &&
+                                                                    shift.status === 'ACTIVE' &&
+                                                                    new Date(
+                                                                        shift.startAt,
+                                                                    ).getTime() > Date.now() && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setCreateShiftDate(null)
+                                                                                setCreatedShiftSummary(null)
+                                                                                setUpdatedShiftSummary(null)
+
+                                                                                setEditingShift({
+                                                                                    scheduleDate: date,
+                                                                                    shift,
+                                                                                })
+                                                                            }}
+                                                                            className="mt-3 w-full rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                                                                        >
+                                                                            編集
+                                                                        </button>
                                                                     )}
                                                             </div>
                                                         )
