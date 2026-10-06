@@ -40,6 +40,11 @@ export function useLogin() {
     mutationFn: login,
 
     onSuccess: (member) => {
+      queryClient.removeQueries({
+        predicate: (query) =>
+          query.queryKey[0] !== 'auth',
+      })
+
       queryClient.setQueryData(
         authQueryKeys.currentMember,
         member,
@@ -72,6 +77,11 @@ export function useLogout() {
     mutationFn: logout,
 
     onSuccess: () => {
+      queryClient.removeQueries({
+        predicate: (query) =>
+          query.queryKey[0] !== 'auth',
+      })
+
       queryClient.setQueryData(
         authQueryKeys.currentMember,
         null,
