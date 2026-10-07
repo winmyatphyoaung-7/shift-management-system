@@ -8,6 +8,7 @@ import { CreateShiftForm } from '../features/schedule/create-shift-form.tsx'
 import { EditShiftForm } from '../features/schedule/edit-shift-form.tsx'
 import { RemoveShiftConfirmation } from '../features/schedule/remove-shift-confirmation.tsx'
 import { PublishScheduleForm } from '../features/schedule/publish-schedule-form.tsx'
+import { CopyWeekForm } from '../features/schedule/copy-week-form.tsx'
 import { ScheduleDayCard } from '../features/schedule/schedule-day-card.tsx'
 import { ScheduleWeekHeader } from '../features/schedule/schedule-week-header.tsx'
 import {
@@ -22,6 +23,7 @@ import type {
     ScheduleDayStatus,
     ScheduleShift,
     PublishScheduleResult,
+    CopyWeekCompletedResult,
 } from '../features/schedule/schedule-types.ts'
 import { toApiError } from '../lib/api-error.ts'
 
@@ -129,6 +131,19 @@ export function SchedulePage() {
         PublishScheduleResult['summary'] | null
     >(null)
 
+    const [
+        isCopyWeekFormOpen,
+        setIsCopyWeekFormOpen,
+    ] = useState(false)
+
+    const [
+        copiedWeekResult,
+        setCopiedWeekResult,
+    ] =
+        useState<CopyWeekCompletedResult | null>(
+            null,
+        )
+
     const { data: member } =
         useCurrentMember()
 
@@ -201,6 +216,8 @@ export function SchedulePage() {
         setRemovedShiftAction(null)
         setIsPublishFormOpen(false)
         setPublishedSummary(null)
+        setIsCopyWeekFormOpen(false)
+        setCopiedWeekResult(null)
     }
 
     function moveWeek(dayOffset: number) {
@@ -241,6 +258,10 @@ export function SchedulePage() {
                 onPublishSchedule={() => {
                     resetOperationState()
                     setIsPublishFormOpen(true)
+                }}
+                onCopyWeek={() => {
+                    resetOperationState()
+                    setIsCopyWeekFormOpen(true)
                 }}
             />
 
@@ -339,6 +360,45 @@ export function SchedulePage() {
                 </div>
             )}
 
+            {copiedWeekResult && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+                >
+                    <p className="font-semibold">
+                        翌週へシフトをコピーしました。
+                    </p>
+
+                    <p className="mt-1">
+                        作成日数：
+                        {
+                            copiedWeekResult
+                                .createdScheduleDayCount
+                        }
+                        日
+                        {' · '}
+                        作成シフト：
+                        {
+                            copiedWeekResult
+                                .createdShiftCount
+                        }
+                        件
+                    </p>
+
+                    {copiedWeekResult.preview
+                        .skippedShiftCount > 0 && (
+                            <p className="mt-1 text-amber-700">
+                                スキップされたシフト：
+                                {
+                                    copiedWeekResult.preview
+                                        .skippedShiftCount
+                                }
+                                件
+                            </p>
+                        )}
+                </div>
+            )}
+
             {member.role === 'MANAGER' &&
                 isPublishFormOpen && (
                     <PublishScheduleForm
@@ -427,6 +487,26 @@ export function SchedulePage() {
 
                             setRemovingShift(null)
                             setRemovedShiftAction(action)
+                        }}
+                    />
+                )}
+
+            {member.role === 'MANAGER' &&
+                isCopyWeekFormOpen && (
+                    <CopyWeekForm
+                        initialSourceWeekStart={
+                            range.from
+                        }
+                        onCancel={() => {
+                            setIsCopyWeekFormOpen(false)
+                        }}
+                        onCopied={(result) => {
+                            setIsCopyWeekFormOpen(false)
+                            setCopiedWeekResult(result)
+
+                            setRange(
+                                result.preview.targetWeek,
+                            )
                         }}
                     />
                 )}

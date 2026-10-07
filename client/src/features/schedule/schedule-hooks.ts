@@ -10,6 +10,7 @@ import {
     updateShift,
     removeShift,
     publishSchedule,
+    copyScheduleWeek,
 } from './schedule-api.ts'
 import type { ScheduleDateRange } from './schedule-types.ts'
 
@@ -96,6 +97,26 @@ export function usePublishSchedule() {
         mutationFn: publishSchedule,
 
         onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey:
+                    scheduleQueryKeys.all,
+            })
+        },
+    })
+}
+
+export function useCopyScheduleWeek() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn: copyScheduleWeek,
+
+        onSuccess: async (result) => {
+            if (!result.copied) {
+                return
+            }
+
             await queryClient.invalidateQueries({
                 queryKey:
                     scheduleQueryKeys.all,

@@ -13,6 +13,9 @@ import type {
     PublishScheduleInput,
     PublishScheduleResponse,
     PublishScheduleResult,
+    CopyWeekInput,
+    CopyWeekResponse,
+    CopyWeekResult,
 } from './schedule-types.ts'
 
 import type {
@@ -75,6 +78,18 @@ export async function publishSchedule(
     const response =
         await apiClient.post<PublishScheduleResponse>(
             '/schedule-days/publish',
+            input,
+        )
+
+    return response.data.data
+}
+
+export async function copyScheduleWeek(
+    input: CopyWeekInput,
+): Promise<CopyWeekResult> {
+    const response =
+        await apiClient.post<CopyWeekResponse>(
+            '/schedule-days/copy-week',
             input,
         )
 

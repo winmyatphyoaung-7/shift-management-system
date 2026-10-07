@@ -186,3 +186,44 @@ export type PublishScheduleResult = {
 
 export type PublishScheduleResponse =
     ApiSuccessResponse<PublishScheduleResult>
+
+export type CopyWeekInput = {
+    sourceWeekStart: string
+    targetWeekStart: string
+    confirmed: boolean
+}
+
+export type CopyWeekWarning = {
+    code: 'INACTIVE_ASSIGNEE_SKIPPED'
+    shiftId: string
+    membershipId: string
+    message: string
+}
+
+export type CopyWeekPreview = {
+    sourceWeek: ScheduleDateRange
+    targetWeek: ScheduleDateRange
+    sourceShiftCount: number
+    copyableShiftCount: number
+    skippedShiftCount: number
+    warnings: CopyWeekWarning[]
+}
+
+export type CopyWeekPreviewResult = {
+    copied: false
+    preview: CopyWeekPreview
+}
+
+export type CopyWeekCompletedResult = {
+    copied: true
+    preview: CopyWeekPreview
+    createdScheduleDayCount: number
+    createdShiftCount: number
+}
+
+export type CopyWeekResult =
+    | CopyWeekPreviewResult
+    | CopyWeekCompletedResult
+
+export type CopyWeekResponse =
+    ApiSuccessResponse<CopyWeekResult>

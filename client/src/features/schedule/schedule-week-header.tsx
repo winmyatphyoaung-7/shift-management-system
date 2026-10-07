@@ -13,6 +13,7 @@ type ScheduleWeekHeaderProps = {
     onPreviousWeek: () => void
     onCurrentWeek: () => void
     onNextWeek: () => void
+    onCopyWeek: () => void
 }
 
 const rangeStartFormatter =
@@ -49,6 +50,7 @@ export function ScheduleWeekHeader({
     onCurrentWeek,
     onNextWeek,
     onPublishSchedule,
+    onCopyWeek,
 }: ScheduleWeekHeaderProps) {
     return (
         <>
@@ -70,6 +72,15 @@ export function ScheduleWeekHeader({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                    {isManager && (
+                        <button
+                            type="button"
+                            onClick={onCopyWeek}
+                            className="rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-700 transition hover:bg-violet-50"
+                        >
+                            翌週へコピー
+                        </button>
+                    )}
                     {isManager && (
                         <button
                             type="button"
