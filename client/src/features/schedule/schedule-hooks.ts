@@ -11,6 +11,7 @@ import {
     removeShift,
     publishSchedule,
     copyScheduleWeek,
+    clearDraftRange,
 } from './schedule-api.ts'
 import type { ScheduleDateRange } from './schedule-types.ts'
 
@@ -114,6 +115,26 @@ export function useCopyScheduleWeek() {
 
         onSuccess: async (result) => {
             if (!result.copied) {
+                return
+            }
+
+            await queryClient.invalidateQueries({
+                queryKey:
+                    scheduleQueryKeys.all,
+            })
+        },
+    })
+}
+
+export function useClearDraftRange() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn: clearDraftRange,
+
+        onSuccess: async (result) => {
+            if (!result.cleared) {
                 return
             }
 

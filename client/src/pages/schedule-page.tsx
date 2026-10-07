@@ -9,6 +9,7 @@ import { EditShiftForm } from '../features/schedule/edit-shift-form.tsx'
 import { RemoveShiftConfirmation } from '../features/schedule/remove-shift-confirmation.tsx'
 import { PublishScheduleForm } from '../features/schedule/publish-schedule-form.tsx'
 import { CopyWeekForm } from '../features/schedule/copy-week-form.tsx'
+import { ClearDraftRangeForm } from '../features/schedule/clear-draft-range-form.tsx'
 import { ScheduleDayCard } from '../features/schedule/schedule-day-card.tsx'
 import { ScheduleWeekHeader } from '../features/schedule/schedule-week-header.tsx'
 import {
@@ -24,6 +25,7 @@ import type {
     ScheduleShift,
     PublishScheduleResult,
     CopyWeekCompletedResult,
+    ClearDraftRangeCompletedResult,
 } from '../features/schedule/schedule-types.ts'
 import { toApiError } from '../lib/api-error.ts'
 
@@ -144,6 +146,18 @@ export function SchedulePage() {
             null,
         )
 
+    const [
+        isClearDraftRangeFormOpen,
+        setIsClearDraftRangeFormOpen,
+    ] = useState(false)
+
+    const [
+        clearedDraftRangeResult,
+        setClearedDraftRangeResult,
+    ] =
+        useState<
+            ClearDraftRangeCompletedResult | null
+        >(null)
     const { data: member } =
         useCurrentMember()
 
@@ -218,6 +232,8 @@ export function SchedulePage() {
         setPublishedSummary(null)
         setIsCopyWeekFormOpen(false)
         setCopiedWeekResult(null)
+        setIsClearDraftRangeFormOpen(false)
+        setClearedDraftRangeResult(null)
     }
 
     function moveWeek(dayOffset: number) {
@@ -262,6 +278,10 @@ export function SchedulePage() {
                 onCopyWeek={() => {
                     resetOperationState()
                     setIsCopyWeekFormOpen(true)
+                }}
+                onClearDraftRange={() => {
+                    resetOperationState()
+                    setIsClearDraftRangeFormOpen(true)
                 }}
             />
 
@@ -399,6 +419,40 @@ export function SchedulePage() {
                 </div>
             )}
 
+            {clearedDraftRangeResult && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+                >
+                    <p className="font-semibold">
+                        Draftスケジュールを削除しました。
+                    </p>
+
+                    <p className="mt-1">
+                        Schedule Day：
+                        {
+                            clearedDraftRangeResult
+                                .deletedScheduleDayCount
+                        }
+                        件
+                        {' · '}
+                        シフト：
+                        {
+                            clearedDraftRangeResult
+                                .deletedShiftCount
+                        }
+                        件
+                        {' · '}
+                        人員要件：
+                        {
+                            clearedDraftRangeResult
+                                .deletedCoverageRequirementCount
+                        }
+                        件
+                    </p>
+                </div>
+            )}
+
             {member.role === 'MANAGER' &&
                 isPublishFormOpen && (
                     <PublishScheduleForm
@@ -506,6 +560,27 @@ export function SchedulePage() {
 
                             setRange(
                                 result.preview.targetWeek,
+                            )
+                        }}
+                    />
+                )}
+
+            {member.role === 'MANAGER' &&
+                isClearDraftRangeFormOpen && (
+                    <ClearDraftRangeForm
+                        initialRange={range}
+                        onCancel={() => {
+                            setIsClearDraftRangeFormOpen(
+                                false,
+                            )
+                        }}
+                        onCleared={(result) => {
+                            setIsClearDraftRangeFormOpen(
+                                false,
+                            )
+
+                            setClearedDraftRangeResult(
+                                result,
                             )
                         }}
                     />

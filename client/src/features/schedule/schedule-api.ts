@@ -16,6 +16,9 @@ import type {
     CopyWeekInput,
     CopyWeekResponse,
     CopyWeekResult,
+    ClearDraftRangeInput,
+    ClearDraftRangeResponse,
+    ClearDraftRangeResult,
 } from './schedule-types.ts'
 
 import type {
@@ -91,6 +94,20 @@ export async function copyScheduleWeek(
         await apiClient.post<CopyWeekResponse>(
             '/schedule-days/copy-week',
             input,
+        )
+
+    return response.data.data
+}
+
+export async function clearDraftRange(
+    input: ClearDraftRangeInput,
+): Promise<ClearDraftRangeResult> {
+    const response =
+        await apiClient.delete<ClearDraftRangeResponse>(
+            '/schedule-days/draft-range',
+            {
+                data: input,
+            },
         )
 
     return response.data.data

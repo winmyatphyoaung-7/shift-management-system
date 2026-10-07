@@ -14,6 +14,7 @@ type ScheduleWeekHeaderProps = {
     onCurrentWeek: () => void
     onNextWeek: () => void
     onCopyWeek: () => void
+    onClearDraftRange: () => void
 }
 
 const rangeStartFormatter =
@@ -51,6 +52,7 @@ export function ScheduleWeekHeader({
     onNextWeek,
     onPublishSchedule,
     onCopyWeek,
+    onClearDraftRange,
 }: ScheduleWeekHeaderProps) {
     return (
         <>
@@ -72,6 +74,15 @@ export function ScheduleWeekHeader({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                    {isManager && (
+                        <button
+                            type="button"
+                            onClick={onClearDraftRange}
+                            className="rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+                        >
+                            Draftを削除
+                        </button>
+                    )}
                     {isManager && (
                         <button
                             type="button"

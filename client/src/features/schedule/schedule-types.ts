@@ -227,3 +227,35 @@ export type CopyWeekResult =
 
 export type CopyWeekResponse =
     ApiSuccessResponse<CopyWeekResult>
+
+export type ClearDraftRangeInput =
+    ScheduleDateRange & {
+        confirmed: boolean
+    }
+
+export type ClearDraftRangePreview = {
+    range: ScheduleDateRange
+    scheduleDayCount: number
+    shiftCount: number
+    coverageRequirementCount: number
+}
+
+export type ClearDraftRangePreviewResult = {
+    cleared: false
+    preview: ClearDraftRangePreview
+}
+
+export type ClearDraftRangeCompletedResult = {
+    cleared: true
+    preview: ClearDraftRangePreview
+    deletedScheduleDayCount: number
+    deletedShiftCount: number
+    deletedCoverageRequirementCount: number
+}
+
+export type ClearDraftRangeResult =
+    | ClearDraftRangePreviewResult
+    | ClearDraftRangeCompletedResult
+
+export type ClearDraftRangeResponse =
+    ApiSuccessResponse<ClearDraftRangeResult>
