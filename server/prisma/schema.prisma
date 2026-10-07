@@ -27,15 +27,52 @@ enum ShiftStatus {
   CANCELLED
 }
 
+enum CoverageRequestSource {
+  STAFF
+  MANAGER
+}
+
+enum CoverageRequestStatus {
+  PENDING_REVIEW
+  OPEN
+  APPROVED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum CoverageCandidateType {
+  VOLUNTEER
+  DIRECT_OFFER
+}
+
+enum CoverageCandidateStatus {
+  PENDING
+  AVAILABLE
+  DECLINED
+  WITHDRAWN
+  SELECTED
+  NOT_SELECTED
+  EXPIRED
+}
+
+enum ReasonCategory {
+  HEALTH
+  SCHOOL
+  PERSONAL
+  OTHER
+}
+
 model Store {
   id       String @id @default(uuid()) @db.Uuid
   code     String @unique @db.VarChar(20)
   name     String @db.VarChar(100)
   timeZone String @default("Asia/Tokyo") @db.VarChar(50)
 
-  memberships  StoreMember[]
-  shiftPresets ShiftPreset[]
-  scheduleDays ScheduleDay[]
+  memberships      StoreMember[]
+  shiftPresets     ShiftPreset[]
+  scheduleDays     ScheduleDay[]
+  coverageRequests CoverageRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -63,13 +100,18 @@ model StoreMember {
   status   MemberStatus @default(ACTIVE)
   colorKey String       @db.VarChar(30)
 
-  store                 Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  user                  User          @relation(fields: [userId], references: [id], onDelete: Restrict)
-  publishedScheduleDays ScheduleDay[] @relation("ScheduleDayPublisher")
-  assignedShifts        Shift[]       @relation("ShiftAssignee")
-  createdShifts         Shift[]       @relation("ShiftCreator")
-  updatedShifts         Shift[]       @relation("ShiftUpdater")
-  cancelledShifts       Shift[]       @relation("ShiftCanceller")
+  store                     Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  user                      User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  publishedScheduleDays     ScheduleDay[]       @relation("ScheduleDayPublisher")
+  assignedShifts            Shift[]             @relation("ShiftAssignee")
+  createdShifts             Shift[]             @relation("ShiftCreator")
+  updatedShifts             Shift[]             @relation("ShiftUpdater")
+  cancelledShifts           Shift[]             @relation("ShiftCanceller")
+  originalCoverageRequests  CoverageRequest[]   @relation("CoverageRequestOriginalAssignee")
+  requestedCoverageRequests CoverageRequest[]   @relation("CoverageRequestRequester")
+  createdCoverageRequests   CoverageRequest[]   @relation("CoverageRequestCreator")
+  approvedCoverageRequests  CoverageRequest[]   @relation("CoverageRequestApprover")
+  coverageCandidates        CoverageCandidate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -162,10 +204,11 @@ model Shift {
   scheduleDay ScheduleDay  @relation(fields: [scheduleDayId], references: [id], onDelete: Cascade)
   shiftPreset ShiftPreset? @relation(fields: [shiftPresetId], references: [id], onDelete: SetNull)
 
-  assignee    StoreMember  @relation("ShiftAssignee", fields: [assigneeMembershipId], references: [id], onDelete: Restrict)
-  createdBy   StoreMember  @relation("ShiftCreator", fields: [createdByMembershipId], references: [id], onDelete: Restrict)
-  updatedBy   StoreMember  @relation("ShiftUpdater", fields: [updatedByMembershipId], references: [id], onDelete: Restrict)
-  cancelledBy StoreMember? @relation("ShiftCanceller", fields: [cancelledByMembershipId], references: [id], onDelete: Restrict)
+  assignee         StoreMember       @relation("ShiftAssignee", fields: [assigneeMembershipId], references: [id], onDelete: Restrict)
+  createdBy        StoreMember       @relation("ShiftCreator", fields: [createdByMembershipId], references: [id], onDelete: Restrict)
+  updatedBy        StoreMember       @relation("ShiftUpdater", fields: [updatedByMembershipId], references: [id], onDelete: Restrict)
+  cancelledBy      StoreMember?      @relation("ShiftCanceller", fields: [cancelledByMembershipId], references: [id], onDelete: Restrict)
+  coverageRequests CoverageRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -173,4 +216,68 @@ model Shift {
   @@index([scheduleDayId, status])
   @@index([assigneeMembershipId, startAt])
   @@index([shiftPresetId])
+}
+
+model CoverageRequest {
+  id                           String  @id @default(uuid()) @db.Uuid
+  storeId                      String  @db.Uuid
+  shiftId                      String  @db.Uuid
+  originalAssigneeMembershipId String  @db.Uuid
+  requesterMembershipId        String  @db.Uuid
+  createdByMembershipId        String  @db.Uuid
+  approvedByMembershipId       String? @db.Uuid
+  selectedCandidateId          String? @unique @db.Uuid
+
+  source           CoverageRequestSource
+  reasonCategory   ReasonCategory
+  reasonDetails    String?               @db.VarChar(1000)
+  requestedStartAt DateTime              @db.Timestamptz(3)
+  requestedEndAt   DateTime              @db.Timestamptz(3)
+  status           CoverageRequestStatus @default(PENDING_REVIEW)
+  responseDeadline DateTime?             @db.Timestamptz(3)
+  rejectionNote    String?               @db.VarChar(500)
+  approvedAt       DateTime?             @db.Timestamptz(3)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+
+  originalAssignee StoreMember  @relation("CoverageRequestOriginalAssignee", fields: [originalAssigneeMembershipId], references: [id], onDelete: Restrict)
+  requester        StoreMember  @relation("CoverageRequestRequester", fields: [requesterMembershipId], references: [id], onDelete: Restrict)
+  createdBy        StoreMember  @relation("CoverageRequestCreator", fields: [createdByMembershipId], references: [id], onDelete: Restrict)
+  approvedBy       StoreMember? @relation("CoverageRequestApprover", fields: [approvedByMembershipId], references: [id], onDelete: Restrict)
+
+  candidates CoverageCandidate[] @relation("CoverageRequestCandidates")
+
+  selectedCandidate CoverageCandidate? @relation("CoverageRequestSelectedCandidate", fields: [selectedCandidateId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, status, createdAt])
+  @@index([shiftId, status])
+  @@index([requesterMembershipId, status])
+  @@index([originalAssigneeMembershipId, status])
+  @@index([status, responseDeadline])
+}
+
+model CoverageCandidate {
+  id                String @id @default(uuid()) @db.Uuid
+  coverageRequestId String @db.Uuid
+  membershipId      String @db.Uuid
+
+  type        CoverageCandidateType
+  status      CoverageCandidateStatus @default(PENDING)
+  respondedAt DateTime?               @db.Timestamptz(3)
+
+  coverageRequest CoverageRequest @relation("CoverageRequestCandidates", fields: [coverageRequestId], references: [id], onDelete: Cascade)
+  membership      StoreMember     @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+
+  selectedForRequest CoverageRequest? @relation("CoverageRequestSelectedCandidate")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([coverageRequestId, membershipId])
+  @@index([coverageRequestId, status])
+  @@index([membershipId, status])
 }
