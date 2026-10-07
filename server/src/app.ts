@@ -7,6 +7,7 @@ import { memberRouter } from "./routes/member-routes.js";
 import { scheduleRouter } from "./routes/schedule-routes.js";
 import { shiftRouter } from "./routes/shift-routes.js";
 import { coverageRouter } from "./routes/coverage-routes.js";
+import { coverageRequestRouter } from "./routes/coverage-request-routes.js";
 import { notFoundHandler } from "./middleware/not-found.js";
 import { errorHandler } from "./middleware/error-handler.js";
 
@@ -41,6 +42,7 @@ app.use("/api/v1/members", memberRouter);
 app.use("/api/v1/schedule-days",scheduleRouter);
 app.use("/api/v1/shifts",shiftRouter);
 app.use("/api/v1/coverage-requirements",coverageRouter);
+app.use("/api/v1/coverage-requests",coverageRequestRouter,);
 
 
 app.use(notFoundHandler);
