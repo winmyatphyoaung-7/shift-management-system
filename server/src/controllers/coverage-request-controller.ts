@@ -5,10 +5,17 @@ import type {
 
 import { AppError } from "../errors/app-error.js";
 import type {
+  ApproveCoverageRequestBody,
+  CoverageRequestIdParams,
   CreateStaffCoverageRequestBody,
+  ListManagerCoverageRequestsQuery,
+  RejectCoverageRequestBody,
 } from "../schemas/coverage-request-schema.js";
 import {
+  approveAndOpenCoverageRequest,
   createStaffCoverageRequest,
+  listManagerCoverageRequests,
+  rejectCoverageRequest,
 } from "../services/coverage-request-service.js";
 
 type CreateStaffCoverageRequest =
@@ -17,6 +24,16 @@ type CreateStaffCoverageRequest =
     unknown,
     CreateStaffCoverageRequestBody
   >;
+type ApproveCoverageRequest = Request<
+  CoverageRequestIdParams,
+  unknown,
+  ApproveCoverageRequestBody
+>;
+type RejectCoverageRequest = Request<
+  CoverageRequestIdParams,
+  unknown,
+  RejectCoverageRequestBody
+>;
 
 export async function createStaffCoverageRequestController(
   req: CreateStaffCoverageRequest,
@@ -38,6 +55,90 @@ export async function createStaffCoverageRequestController(
     );
 
   res.status(201).json({
+    status: "success",
+    data: {
+      coverageRequest,
+    },
+  });
+}
+
+export async function listManagerCoverageRequestsController(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const query = res.locals[
+    "validatedQuery"
+  ] as ListManagerCoverageRequestsQuery;
+
+  const coverageRequests =
+    await listManagerCoverageRequests(
+      req.auth.storeId,
+      query,
+    );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      coverageRequests,
+    },
+  });
+}
+
+export async function approveAndOpenCoverageRequestController(
+  req: ApproveCoverageRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const coverageRequest =
+    await approveAndOpenCoverageRequest(
+      req.auth.storeId,
+      req.params.id,
+      req.body,
+    );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      coverageRequest,
+    },
+  });
+}
+
+export async function rejectCoverageRequestController(
+  req: RejectCoverageRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const coverageRequest =
+    await rejectCoverageRequest(
+      req.auth.storeId,
+      req.params.id,
+      req.body,
+    );
+
+  res.status(200).json({
     status: "success",
     data: {
       coverageRequest,

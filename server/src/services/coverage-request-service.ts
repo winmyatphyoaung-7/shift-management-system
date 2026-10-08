@@ -1,7 +1,10 @@
 import { AppError } from "../errors/app-error.js";
 import { prisma } from "../lib/prisma.js";
 import type {
+  ApproveCoverageRequestBody,
   CreateStaffCoverageRequestBody,
+  ListManagerCoverageRequestsQuery,
+  RejectCoverageRequestBody,
 } from "../schemas/coverage-request-schema.js";
 
 const STAFF_REQUEST_NOTICE_DAYS = 7;
@@ -214,4 +217,375 @@ export async function createStaffCoverageRequest(
 
     throw error;
   }
+}
+
+export async function listManagerCoverageRequests(
+  storeId: string,
+  query: ListManagerCoverageRequestsQuery,
+) {
+  return prisma.coverageRequest.findMany({
+    where: {
+      storeId,
+
+      ...(query.status
+        ? {
+            status: query.status,
+          }
+        : {}),
+    },
+
+    orderBy: {
+      createdAt: "desc",
+    },
+
+    select: {
+      id: true,
+      shiftId: true,
+      source: true,
+      reasonCategory: true,
+      reasonDetails: true,
+      requestedStartAt: true,
+      requestedEndAt: true,
+      status: true,
+      responseDeadline: true,
+      rejectionNote: true,
+      approvedAt: true,
+      selectedCandidateId: true,
+      createdAt: true,
+      updatedAt: true,
+
+      shift: {
+        select: {
+          id: true,
+          status: true,
+          startAt: true,
+          endAt: true,
+          note: true,
+
+          scheduleDay: {
+            select: {
+              scheduleDate: true,
+              status: true,
+            },
+          },
+        },
+      },
+
+      originalAssignee: {
+        select: {
+          id: true,
+          loginId: true,
+          role: true,
+          status: true,
+          colorKey: true,
+
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+
+      requester: {
+        select: {
+          id: true,
+          loginId: true,
+          role: true,
+          status: true,
+          colorKey: true,
+
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+
+      _count: {
+        select: {
+          candidates: true,
+        },
+      },
+    },
+  });
+}
+
+export async function approveAndOpenCoverageRequest(
+  storeId: string,
+  coverageRequestId: string,
+  input: ApproveCoverageRequestBody,
+) {
+  return prisma.$transaction(
+    async (transaction) => {
+      const coverageRequest =
+        await transaction
+          .coverageRequest
+          .findFirst({
+            where: {
+              id: coverageRequestId,
+              storeId,
+            },
+
+            select: {
+              id: true,
+              status: true,
+
+              shift: {
+                select: {
+                  id: true,
+                  status: true,
+                  startAt: true,
+                },
+              },
+            },
+          });
+
+      if (!coverageRequest) {
+        throw new AppError(
+          404,
+          "COVERAGE_REQUEST_NOT_FOUND",
+          "Coverage request not found",
+        );
+      }
+
+      if (
+        coverageRequest.status !==
+        "PENDING_REVIEW"
+      ) {
+        throw new AppError(
+          409,
+          "COVERAGE_REQUEST_NOT_PENDING",
+          "Only a pending coverage request can be approved and opened",
+        );
+      }
+
+      if (
+        coverageRequest.shift.status !==
+        "ACTIVE"
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_NOT_ACTIVE",
+          "The related shift is not active",
+        );
+      }
+
+      const now = new Date();
+
+      if (
+        coverageRequest.shift.startAt
+          .getTime() <= now.getTime()
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_ALREADY_STARTED",
+          "A coverage request cannot be opened after the shift start time",
+        );
+      }
+
+      const responseDeadline =
+        new Date(input.responseDeadline);
+
+      if (
+        responseDeadline.getTime() <=
+        now.getTime()
+      ) {
+        throw new AppError(
+          400,
+          "RESPONSE_DEADLINE_NOT_FUTURE",
+          "Response deadline must be in the future",
+        );
+      }
+
+      if (
+        responseDeadline.getTime() >=
+        coverageRequest.shift.startAt
+          .getTime()
+      ) {
+        throw new AppError(
+          400,
+          "RESPONSE_DEADLINE_TOO_LATE",
+          "Response deadline must be before the shift start time",
+        );
+      }
+
+      const updateResult =
+        await transaction
+          .coverageRequest
+          .updateMany({
+            where: {
+              id: coverageRequest.id,
+              storeId,
+              status: "PENDING_REVIEW",
+            },
+
+            data: {
+              status: "OPEN",
+              responseDeadline,
+              rejectionNote: null,
+            },
+          });
+
+      if (updateResult.count !== 1) {
+        throw new AppError(
+          409,
+          "COVERAGE_REQUEST_STATE_CHANGED",
+          "Coverage request state changed before it could be opened",
+        );
+      }
+
+      return transaction
+        .coverageRequest
+        .findUniqueOrThrow({
+          where: {
+            id: coverageRequest.id,
+          },
+
+          select: {
+            id: true,
+            shiftId: true,
+            source: true,
+            reasonCategory: true,
+            reasonDetails: true,
+            requestedStartAt: true,
+            requestedEndAt: true,
+            status: true,
+            responseDeadline: true,
+            rejectionNote: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+    },
+    {
+      isolationLevel: "Serializable",
+    },
+  );
+}
+
+export async function rejectCoverageRequest(
+  storeId: string,
+  coverageRequestId: string,
+  input: RejectCoverageRequestBody,
+) {
+  return prisma.$transaction(
+    async (transaction) => {
+      const coverageRequest =
+        await transaction
+          .coverageRequest
+          .findFirst({
+            where: {
+              id: coverageRequestId,
+              storeId,
+            },
+
+            select: {
+              id: true,
+              status: true,
+
+              shift: {
+                select: {
+                  status: true,
+                  startAt: true,
+                },
+              },
+            },
+          });
+
+      if (!coverageRequest) {
+        throw new AppError(
+          404,
+          "COVERAGE_REQUEST_NOT_FOUND",
+          "Coverage request not found",
+        );
+      }
+
+      if (
+        coverageRequest.status !==
+        "PENDING_REVIEW"
+      ) {
+        throw new AppError(
+          409,
+          "COVERAGE_REQUEST_NOT_PENDING",
+          "Only a pending coverage request can be rejected",
+        );
+      }
+
+      if (
+        coverageRequest.shift.status !==
+        "ACTIVE"
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_NOT_ACTIVE",
+          "The related shift is not active",
+        );
+      }
+
+      if (
+        coverageRequest.shift.startAt
+          .getTime() <= Date.now()
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_ALREADY_STARTED",
+          "A coverage request cannot be rejected after the shift start time",
+        );
+      }
+
+      const updateResult =
+        await transaction
+          .coverageRequest
+          .updateMany({
+            where: {
+              id: coverageRequest.id,
+              storeId,
+              status: "PENDING_REVIEW",
+            },
+
+            data: {
+              status: "REJECTED",
+              rejectionNote:
+                input.rejectionNote || null,
+              responseDeadline: null,
+            },
+          });
+
+      if (updateResult.count !== 1) {
+        throw new AppError(
+          409,
+          "COVERAGE_REQUEST_STATE_CHANGED",
+          "Coverage request state changed before it could be rejected",
+        );
+      }
+
+      return transaction
+        .coverageRequest
+        .findUniqueOrThrow({
+          where: {
+            id: coverageRequest.id,
+          },
+
+          select: {
+            id: true,
+            shiftId: true,
+            source: true,
+            reasonCategory: true,
+            reasonDetails: true,
+            requestedStartAt: true,
+            requestedEndAt: true,
+            status: true,
+            responseDeadline: true,
+            rejectionNote: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+    },
+    {
+      isolationLevel: "Serializable",
+    },
+  );
 }
