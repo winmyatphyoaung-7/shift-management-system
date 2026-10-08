@@ -6,6 +6,7 @@ import type {
   ListManagerCoverageRequestsQuery,
   RejectCoverageRequestBody,
   CreateManagerCoverageRequestBody,
+  SendDirectOffersBody,
 } from "../schemas/coverage-request-schema.js";
 
 const STAFF_REQUEST_NOTICE_DAYS = 7;
@@ -1192,5 +1193,485 @@ export async function withdrawCoverageResponse(
     {
       isolationLevel: "Serializable",
     },
+  );
+}
+
+export async function sendDirectOffers(
+  storeId: string,
+  coverageRequestId: string,
+  input: SendDirectOffersBody,
+) {
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const coverageRequest =
+          await transaction.coverageRequest.findFirst({
+            where: {
+              id: coverageRequestId,
+              storeId,
+            },
+            select: {
+              id: true,
+              status: true,
+              originalAssigneeMembershipId: true,
+              requestedStartAt: true,
+              requestedEndAt: true,
+              responseDeadline: true,
+              shift: {
+                select: {
+                  status: true,
+                  startAt: true,
+                },
+              },
+            },
+          });
+
+        if (!coverageRequest) {
+          throw new AppError(
+            404,
+            "COVERAGE_REQUEST_NOT_FOUND",
+            "Coverage request not found",
+          );
+        }
+
+        if (coverageRequest.status !== "OPEN") {
+          throw new AppError(
+            409,
+            "COVERAGE_REQUEST_NOT_OPEN",
+            "Direct offers can be sent only for an open coverage request",
+          );
+        }
+
+        if (coverageRequest.shift.status !== "ACTIVE") {
+          throw new AppError(
+            409,
+            "SHIFT_NOT_ACTIVE",
+            "The related shift is not active",
+          );
+        }
+
+        const now = new Date();
+
+        if (
+          coverageRequest.shift.startAt.getTime() <=
+          now.getTime()
+        ) {
+          throw new AppError(
+            409,
+            "SHIFT_ALREADY_STARTED",
+            "Direct offers cannot be sent after the shift start time",
+          );
+        }
+
+        if (
+          !coverageRequest.responseDeadline ||
+          coverageRequest.responseDeadline.getTime() <=
+            now.getTime()
+        ) {
+          throw new AppError(
+            409,
+            "RESPONSE_DEADLINE_PASSED",
+            "The response deadline has passed",
+          );
+        }
+
+        if (
+          input.membershipIds.includes(
+            coverageRequest.originalAssigneeMembershipId,
+          )
+        ) {
+          throw new AppError(
+            409,
+            "CANNOT_OFFER_ORIGINAL_ASSIGNEE",
+            "A direct offer cannot be sent to the original assignee",
+          );
+        }
+
+        const eligibleMembers =
+          await transaction.storeMember.findMany({
+            where: {
+              storeId,
+              id: {
+                in: input.membershipIds,
+              },
+              role: "STAFF",
+              status: "ACTIVE",
+            },
+            select: {
+              id: true,
+            },
+          });
+
+        if (
+          eligibleMembers.length !==
+          input.membershipIds.length
+        ) {
+          const eligibleMemberIds =
+            new Set(
+              eligibleMembers.map(
+                (member) => member.id,
+              ),
+            );
+
+          throw new AppError(
+            409,
+            "DIRECT_OFFER_MEMBER_NOT_ELIGIBLE",
+            "One or more direct-offer members are not eligible",
+            {
+              membershipIds:
+                input.membershipIds.filter(
+                  (membershipId) =>
+                    !eligibleMemberIds.has(
+                      membershipId,
+                    ),
+                ),
+            },
+          );
+        }
+
+        const existingCandidates =
+          await transaction.coverageCandidate.findMany({
+            where: {
+              coverageRequestId:
+                coverageRequest.id,
+              membershipId: {
+                in: input.membershipIds,
+              },
+            },
+            select: {
+              membershipId: true,
+              status: true,
+            },
+          });
+
+        if (existingCandidates.length > 0) {
+          throw new AppError(
+            409,
+            "COVERAGE_RESPONSE_ALREADY_EXISTS",
+            "One or more members already have a response for this coverage request",
+            {
+              candidates:
+                existingCandidates,
+            },
+          );
+        }
+
+        const overlappingShifts =
+          await transaction.shift.findMany({
+            where: {
+              assigneeMembershipId: {
+                in: input.membershipIds,
+              },
+              status: "ACTIVE",
+              scheduleDay: {
+                storeId,
+              },
+              startAt: {
+                lt: coverageRequest.requestedEndAt,
+              },
+              endAt: {
+                gt: coverageRequest.requestedStartAt,
+              },
+            },
+            select: {
+              id: true,
+              assigneeMembershipId: true,
+              startAt: true,
+              endAt: true,
+            },
+          });
+
+        if (overlappingShifts.length > 0) {
+          throw new AppError(
+            409,
+            "DIRECT_OFFER_MEMBER_HAS_OVERLAPPING_SHIFT",
+            "A direct offer cannot be sent to a member with an overlapping shift",
+            {
+              shifts: overlappingShifts,
+            },
+          );
+        }
+
+        for (const membershipId of input.membershipIds) {
+          await transaction.coverageCandidate.create({
+            data: {
+              coverageRequestId:
+                coverageRequest.id,
+              membershipId,
+              type: "DIRECT_OFFER",
+              status: "PENDING",
+            },
+          });
+        }
+
+        return transaction.coverageCandidate.findMany({
+          where: {
+            coverageRequestId:
+              coverageRequest.id,
+            membershipId: {
+              in: input.membershipIds,
+            },
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+          select: {
+            id: true,
+            coverageRequestId: true,
+            membershipId: true,
+            type: true,
+            status: true,
+            respondedAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new AppError(
+        409,
+        "COVERAGE_RESPONSE_ALREADY_EXISTS",
+        "One or more members already have a response for this coverage request",
+      );
+    }
+
+    throw error;
+  }
+}
+
+type DirectOfferResponse =
+  | "ACCEPT"
+  | "DECLINE";
+
+async function respondToDirectOffer(
+  storeId: string,
+  membershipId: string,
+  coverageRequestId: string,
+  response: DirectOfferResponse,
+) {
+  return prisma.$transaction(
+    async (transaction) => {
+      const coverageRequest =
+        await transaction.coverageRequest.findFirst({
+          where: {
+            id: coverageRequestId,
+            storeId,
+          },
+          select: {
+            id: true,
+            status: true,
+            requestedStartAt: true,
+            requestedEndAt: true,
+            responseDeadline: true,
+            shift: {
+              select: {
+                status: true,
+                startAt: true,
+              },
+            },
+          },
+        });
+
+      if (!coverageRequest) {
+        throw new AppError(
+          404,
+          "COVERAGE_REQUEST_NOT_FOUND",
+          "Coverage request not found",
+        );
+      }
+
+      if (coverageRequest.status !== "OPEN") {
+        throw new AppError(
+          409,
+          "COVERAGE_REQUEST_NOT_OPEN",
+          "The coverage request is not open",
+        );
+      }
+
+      if (coverageRequest.shift.status !== "ACTIVE") {
+        throw new AppError(
+          409,
+          "SHIFT_NOT_ACTIVE",
+          "The related shift is not active",
+        );
+      }
+
+      const now = new Date();
+
+      if (
+        coverageRequest.shift.startAt.getTime() <=
+        now.getTime()
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_ALREADY_STARTED",
+          "A direct offer cannot be answered after the shift start time",
+        );
+      }
+
+      const candidate =
+        await transaction.coverageCandidate.findUnique({
+          where: {
+            coverageRequestId_membershipId: {
+              coverageRequestId:
+                coverageRequest.id,
+              membershipId,
+            },
+          },
+          select: {
+            id: true,
+            type: true,
+            status: true,
+          },
+        });
+
+      if (
+        !candidate ||
+        candidate.type !== "DIRECT_OFFER"
+      ) {
+        throw new AppError(
+          404,
+          "DIRECT_OFFER_NOT_FOUND",
+          "Direct offer not found",
+        );
+      }
+
+      if (candidate.status !== "PENDING") {
+        throw new AppError(
+          409,
+          "DIRECT_OFFER_ALREADY_RESPONDED",
+          "This direct offer has already been answered",
+        );
+      }
+
+      if (response === "ACCEPT") {
+        if (
+          !coverageRequest.responseDeadline ||
+          coverageRequest.responseDeadline.getTime() <=
+            now.getTime()
+        ) {
+          throw new AppError(
+            409,
+            "RESPONSE_DEADLINE_PASSED",
+            "The response deadline has passed",
+          );
+        }
+
+        const overlappingShift =
+          await transaction.shift.findFirst({
+            where: {
+              assigneeMembershipId:
+                membershipId,
+              status: "ACTIVE",
+              scheduleDay: {
+                storeId,
+              },
+              startAt: {
+                lt: coverageRequest.requestedEndAt,
+              },
+              endAt: {
+                gt: coverageRequest.requestedStartAt,
+              },
+            },
+            select: {
+              id: true,
+              startAt: true,
+              endAt: true,
+            },
+          });
+
+        if (overlappingShift) {
+          throw new AppError(
+            409,
+            "DIRECT_OFFER_HAS_OVERLAPPING_SHIFT",
+            "A member with an overlapping shift cannot accept the direct offer",
+            {
+              shiftId:
+                overlappingShift.id,
+              startAt:
+                overlappingShift.startAt,
+              endAt:
+                overlappingShift.endAt,
+            },
+          );
+        }
+      }
+
+      const nextStatus =
+        response === "ACCEPT"
+          ? "AVAILABLE"
+          : "DECLINED";
+
+      const updateResult =
+        await transaction.coverageCandidate.updateMany({
+          where: {
+            id: candidate.id,
+            type: "DIRECT_OFFER",
+            status: "PENDING",
+          },
+          data: {
+            status: nextStatus,
+            respondedAt: now,
+          },
+        });
+
+      if (updateResult.count !== 1) {
+        throw new AppError(
+          409,
+          "DIRECT_OFFER_STATE_CHANGED",
+          "The direct offer state has changed",
+        );
+      }
+
+      return transaction.coverageCandidate.findUniqueOrThrow({
+        where: {
+          id: candidate.id,
+        },
+        select: {
+          id: true,
+          coverageRequestId: true,
+          membershipId: true,
+          type: true,
+          status: true,
+          respondedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    },
+    {
+      isolationLevel: "Serializable",
+    },
+  );
+}
+
+export function acceptDirectOffer(
+  storeId: string,
+  membershipId: string,
+  coverageRequestId: string,
+) {
+  return respondToDirectOffer(
+    storeId,
+    membershipId,
+    coverageRequestId,
+    "ACCEPT",
+  );
+}
+
+export function declineDirectOffer(
+  storeId: string,
+  membershipId: string,
+  coverageRequestId: string,
+) {
+  return respondToDirectOffer(
+    storeId,
+    membershipId,
+    coverageRequestId,
+    "DECLINE",
   );
 }

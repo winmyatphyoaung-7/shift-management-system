@@ -109,3 +109,28 @@ export const rejectCoverageRequestBodySchema = z
 export type RejectCoverageRequestBody = z.infer<
   typeof rejectCoverageRequestBodySchema
 >;
+
+export const sendDirectOffersBodySchema = z
+  .object({
+    membershipIds: z
+      .array(
+        z.uuid(
+          "Membership ID must be a valid UUID",
+        ),
+      )
+      .min(
+        1,
+        "At least one membership ID is required",
+      )
+      .refine(
+        (membershipIds) =>
+          new Set(membershipIds).size ===
+          membershipIds.length,
+        "Membership IDs must be unique",
+      ),
+  })
+  .strict();
+
+export type SendDirectOffersBody = z.infer<
+  typeof sendDirectOffersBodySchema
+>;

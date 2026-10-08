@@ -9,6 +9,9 @@ import {
   listPublicCoverageRequestsController,
   volunteerForCoverageRequestController,
   withdrawCoverageResponseController,
+  sendDirectOffersController,
+  acceptDirectOfferController,
+  declineDirectOfferController,
 } from "../controllers/coverage-request-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
@@ -24,6 +27,7 @@ import {
   coverageRequestIdParamsSchema,
   rejectCoverageRequestBodySchema,
   createManagerCoverageRequestBodySchema,
+  sendDirectOffersBodySchema,
 } from "../schemas/coverage-request-schema.js";
 
 export const coverageRequestRouter =
@@ -53,6 +57,20 @@ coverageRequestRouter.post(
 );
 
 coverageRequestRouter.post(
+  "/:id/direct-offers",
+  requireAuth,
+  requirePasswordChanged,
+  requireManager,
+  validateParams(
+    coverageRequestIdParamsSchema,
+  ),
+  validateBody(
+    sendDirectOffersBodySchema,
+  ),
+  sendDirectOffersController,
+);
+
+coverageRequestRouter.post(
   "/:id/approve-open",
   requireAuth,
   requirePasswordChanged,
@@ -78,6 +96,28 @@ coverageRequestRouter.post(
     rejectCoverageRequestBodySchema,
   ),
   rejectCoverageRequestController,
+);
+
+coverageRequestRouter.post(
+  "/:id/direct-offer/accept",
+  requireAuth,
+  requirePasswordChanged,
+  requireStaff,
+  validateParams(
+    coverageRequestIdParamsSchema,
+  ),
+  acceptDirectOfferController,
+);
+
+coverageRequestRouter.post(
+  "/:id/direct-offer/decline",
+  requireAuth,
+  requirePasswordChanged,
+  requireStaff,
+  validateParams(
+    coverageRequestIdParamsSchema,
+  ),
+  declineDirectOfferController,
 );
 
 coverageRequestRouter.post(

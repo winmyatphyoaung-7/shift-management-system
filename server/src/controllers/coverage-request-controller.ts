@@ -11,6 +11,7 @@ import type {
   ListManagerCoverageRequestsQuery,
   RejectCoverageRequestBody,
   CreateManagerCoverageRequestBody,
+  SendDirectOffersBody,
 } from "../schemas/coverage-request-schema.js";
 import {
   approveAndOpenCoverageRequest,
@@ -21,6 +22,9 @@ import {
   listPublicCoverageRequests,
   volunteerForCoverageRequest,
   withdrawCoverageResponse,
+  sendDirectOffers,
+  acceptDirectOffer,
+  declineDirectOffer,
 } from "../services/coverage-request-service.js";
 
 type CreateStaffCoverageRequest =
@@ -29,26 +33,41 @@ type CreateStaffCoverageRequest =
     unknown,
     CreateStaffCoverageRequestBody
   >;
+
 type ApproveCoverageRequest = Request<
   CoverageRequestIdParams,
   unknown,
   ApproveCoverageRequestBody
 >;
+
 type RejectCoverageRequest = Request<
   CoverageRequestIdParams,
   unknown,
   RejectCoverageRequestBody
 >;
+
 type CreateManagerCoverageRequest = Request<
   Record<string, never>,
   unknown,
   CreateManagerCoverageRequestBody
 >;
+
 type VolunteerCoverageRequest = Request<
   CoverageRequestIdParams
 >;
+
 type WithdrawCoverageResponseRequest =
   Request<CoverageRequestIdParams>;
+
+type SendDirectOffersRequest = Request<
+  CoverageRequestIdParams,
+  unknown,
+  SendDirectOffersBody
+>;
+
+type DirectOfferActionRequest =
+  Request<CoverageRequestIdParams>;
+
 export async function createStaffCoverageRequestController(
   req: CreateStaffCoverageRequest,
   res: Response,
@@ -254,6 +273,87 @@ export async function withdrawCoverageResponseController(
 
   const candidate =
     await withdrawCoverageResponse(
+      req.auth.storeId,
+      req.auth.membershipId,
+      req.params.id,
+    );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      candidate,
+    },
+  });
+}
+
+export async function sendDirectOffersController(
+  req: SendDirectOffersRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const candidates =
+    await sendDirectOffers(
+      req.auth.storeId,
+      req.params.id,
+      req.body,
+    );
+
+  res.status(201).json({
+    status: "success",
+    data: {
+      candidates,
+    },
+  });
+}
+
+export async function acceptDirectOfferController(
+  req: DirectOfferActionRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const candidate =
+    await acceptDirectOffer(
+      req.auth.storeId,
+      req.auth.membershipId,
+      req.params.id,
+    );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      candidate,
+    },
+  });
+}
+
+export async function declineDirectOfferController(
+  req: DirectOfferActionRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const candidate =
+    await declineDirectOffer(
       req.auth.storeId,
       req.auth.membershipId,
       req.params.id,
