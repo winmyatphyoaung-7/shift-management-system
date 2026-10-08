@@ -10,12 +10,14 @@ import type {
   CreateStaffCoverageRequestBody,
   ListManagerCoverageRequestsQuery,
   RejectCoverageRequestBody,
+  CreateManagerCoverageRequestBody,
 } from "../schemas/coverage-request-schema.js";
 import {
   approveAndOpenCoverageRequest,
   createStaffCoverageRequest,
   listManagerCoverageRequests,
   rejectCoverageRequest,
+  createManagerCoverageRequest,
 } from "../services/coverage-request-service.js";
 
 type CreateStaffCoverageRequest =
@@ -34,7 +36,11 @@ type RejectCoverageRequest = Request<
   unknown,
   RejectCoverageRequestBody
 >;
-
+type CreateManagerCoverageRequest = Request<
+  Record<string, never>,
+  unknown,
+  CreateManagerCoverageRequestBody
+>;
 export async function createStaffCoverageRequestController(
   req: CreateStaffCoverageRequest,
   res: Response,
@@ -139,6 +145,33 @@ export async function rejectCoverageRequestController(
     );
 
   res.status(200).json({
+    status: "success",
+    data: {
+      coverageRequest,
+    },
+  });
+}
+
+export async function createManagerCoverageRequestController(
+  req: CreateManagerCoverageRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const coverageRequest =
+    await createManagerCoverageRequest(
+      req.auth.storeId,
+      req.auth.membershipId,
+      req.body,
+    );
+
+  res.status(201).json({
     status: "success",
     data: {
       coverageRequest,

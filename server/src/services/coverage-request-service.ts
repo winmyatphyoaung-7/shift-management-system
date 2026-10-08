@@ -5,6 +5,7 @@ import type {
   CreateStaffCoverageRequestBody,
   ListManagerCoverageRequestsQuery,
   RejectCoverageRequestBody,
+  CreateManagerCoverageRequestBody,
 } from "../schemas/coverage-request-schema.js";
 
 const STAFF_REQUEST_NOTICE_DAYS = 7;
@@ -588,4 +589,190 @@ export async function rejectCoverageRequest(
       isolationLevel: "Serializable",
     },
   );
+}
+
+export async function createManagerCoverageRequest(
+  storeId: string,
+  managerMembershipId: string,
+  input: CreateManagerCoverageRequestBody,
+) {
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const shift =
+          await transaction.shift.findFirst({
+            where: {
+              id: input.shiftId,
+
+              scheduleDay: {
+                storeId,
+              },
+            },
+
+            select: {
+              id: true,
+              assigneeMembershipId: true,
+              startAt: true,
+              endAt: true,
+              status: true,
+
+              scheduleDay: {
+                select: {
+                  status: true,
+                },
+              },
+            },
+          });
+
+        if (!shift) {
+          throw new AppError(
+            404,
+            "SHIFT_NOT_FOUND",
+            "Shift not found",
+          );
+        }
+
+        if (shift.status !== "ACTIVE") {
+          throw new AppError(
+            409,
+            "SHIFT_NOT_ACTIVE",
+            "A replacement request can be created only for an active shift",
+          );
+        }
+
+        if (
+          shift.scheduleDay.status !==
+          "PUBLISHED"
+        ) {
+          throw new AppError(
+            409,
+            "SHIFT_NOT_PUBLISHED",
+            "A replacement request can be created only for a published shift",
+          );
+        }
+
+        const now = new Date();
+
+        if (
+          shift.startAt.getTime() <=
+          now.getTime()
+        ) {
+          throw new AppError(
+            409,
+            "SHIFT_ALREADY_STARTED",
+            "A replacement request cannot be created after the shift start time",
+          );
+        }
+
+        const responseDeadline =
+          new Date(input.responseDeadline);
+
+        if (
+          responseDeadline.getTime() <=
+          now.getTime()
+        ) {
+          throw new AppError(
+            400,
+            "RESPONSE_DEADLINE_NOT_FUTURE",
+            "Response deadline must be in the future",
+          );
+        }
+
+        if (
+          responseDeadline.getTime() >=
+          shift.startAt.getTime()
+        ) {
+          throw new AppError(
+            400,
+            "RESPONSE_DEADLINE_TOO_LATE",
+            "Response deadline must be before the shift start time",
+          );
+        }
+
+        const activeRequest =
+          await transaction
+            .coverageRequest
+            .findFirst({
+              where: {
+                shiftId: shift.id,
+
+                status: {
+                  in: [
+                    "PENDING_REVIEW",
+                    "OPEN",
+                  ],
+                },
+              },
+
+              select: {
+                id: true,
+              },
+            });
+
+        if (activeRequest) {
+          throw new AppError(
+            409,
+            "COVERAGE_REQUEST_ALREADY_ACTIVE",
+            "This shift already has an active replacement request",
+          );
+        }
+
+        return transaction
+          .coverageRequest
+          .create({
+            data: {
+              storeId,
+              shiftId: shift.id,
+              originalAssigneeMembershipId:
+                shift.assigneeMembershipId,
+              requesterMembershipId:
+                managerMembershipId,
+              createdByMembershipId:
+                managerMembershipId,
+              source: "MANAGER",
+              reasonCategory:
+                input.reasonCategory,
+              reasonDetails:
+                input.reasonDetails || null,
+              requestedStartAt:
+                shift.startAt,
+              requestedEndAt:
+                shift.endAt,
+              status: "OPEN",
+              responseDeadline,
+            },
+
+            select: {
+              id: true,
+              shiftId: true,
+              originalAssigneeMembershipId:
+                true,
+              requesterMembershipId: true,
+              source: true,
+              reasonCategory: true,
+              reasonDetails: true,
+              requestedStartAt: true,
+              requestedEndAt: true,
+              status: true,
+              responseDeadline: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          });
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new AppError(
+        409,
+        "COVERAGE_REQUEST_ALREADY_ACTIVE",
+        "This shift already has an active replacement request",
+      );
+    }
+
+    throw error;
+  }
 }

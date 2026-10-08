@@ -5,6 +5,7 @@ import {
   listManagerCoverageRequestsController,
   approveAndOpenCoverageRequestController,
   rejectCoverageRequestController,
+  createManagerCoverageRequestController,
 } from "../controllers/coverage-request-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
@@ -19,6 +20,7 @@ import {
   approveCoverageRequestBodySchema,
   coverageRequestIdParamsSchema,
   rejectCoverageRequestBodySchema,
+  createManagerCoverageRequestBodySchema,
 } from "../schemas/coverage-request-schema.js";
 
 export const coverageRequestRouter =
@@ -34,6 +36,17 @@ coverageRequestRouter.get(
     listManagerCoverageRequestsQuerySchema,
   ),
   listManagerCoverageRequestsController,
+);
+
+coverageRequestRouter.post(
+  "/manager",
+  requireAuth,
+  requirePasswordChanged,
+  requireManager,
+  validateBody(
+    createManagerCoverageRequestBodySchema,
+  ),
+  createManagerCoverageRequestController,
 );
 
 coverageRequestRouter.post(

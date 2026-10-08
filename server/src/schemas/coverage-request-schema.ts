@@ -34,6 +34,20 @@ export type CreateStaffCoverageRequestBody =
     typeof createStaffCoverageRequestBodySchema
   >;
 
+export const createManagerCoverageRequestBodySchema =
+  createStaffCoverageRequestBodySchema.extend({
+    responseDeadline: z
+      .string()
+      .datetime({
+        offset: true,
+      }),
+  });
+
+export type CreateManagerCoverageRequestBody =
+  z.infer<
+    typeof createManagerCoverageRequestBodySchema
+  >;
+
 export const COVERAGE_REQUEST_STATUSES = [
   "PENDING_REVIEW",
   "OPEN",
