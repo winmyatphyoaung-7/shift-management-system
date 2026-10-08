@@ -6,6 +6,9 @@ import {
   approveAndOpenCoverageRequestController,
   rejectCoverageRequestController,
   createManagerCoverageRequestController,
+  listPublicCoverageRequestsController,
+  volunteerForCoverageRequestController,
+  withdrawCoverageResponseController,
 } from "../controllers/coverage-request-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
@@ -75,6 +78,36 @@ coverageRequestRouter.post(
     rejectCoverageRequestBodySchema,
   ),
   rejectCoverageRequestController,
+);
+
+coverageRequestRouter.post(
+  "/:id/volunteer",
+  requireAuth,
+  requirePasswordChanged,
+  requireStaff,
+  validateParams(
+    coverageRequestIdParamsSchema,
+  ),
+  volunteerForCoverageRequestController,
+);
+
+coverageRequestRouter.post(
+  "/:id/withdraw",
+  requireAuth,
+  requirePasswordChanged,
+  requireStaff,
+  validateParams(
+    coverageRequestIdParamsSchema,
+  ),
+  withdrawCoverageResponseController,
+);
+
+coverageRequestRouter.get(
+  "/",
+  requireAuth,
+  requirePasswordChanged,
+  requireStaff,
+  listPublicCoverageRequestsController,
 );
 
 coverageRequestRouter.post(

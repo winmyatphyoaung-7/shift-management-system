@@ -18,6 +18,9 @@ import {
   listManagerCoverageRequests,
   rejectCoverageRequest,
   createManagerCoverageRequest,
+  listPublicCoverageRequests,
+  volunteerForCoverageRequest,
+  withdrawCoverageResponse,
 } from "../services/coverage-request-service.js";
 
 type CreateStaffCoverageRequest =
@@ -41,6 +44,11 @@ type CreateManagerCoverageRequest = Request<
   unknown,
   CreateManagerCoverageRequestBody
 >;
+type VolunteerCoverageRequest = Request<
+  CoverageRequestIdParams
+>;
+type WithdrawCoverageResponseRequest =
+  Request<CoverageRequestIdParams>;
 export async function createStaffCoverageRequestController(
   req: CreateStaffCoverageRequest,
   res: Response,
@@ -175,6 +183,86 @@ export async function createManagerCoverageRequestController(
     status: "success",
     data: {
       coverageRequest,
+    },
+  });
+}
+
+export async function listPublicCoverageRequestsController(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const coverageRequests =
+    await listPublicCoverageRequests(
+      req.auth.storeId,
+      req.auth.membershipId,
+    );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      coverageRequests,
+    },
+  });
+}
+
+export async function volunteerForCoverageRequestController(
+  req: VolunteerCoverageRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const candidate =
+    await volunteerForCoverageRequest(
+      req.auth.storeId,
+      req.auth.membershipId,
+      req.params.id,
+    );
+
+  res.status(201).json({
+    status: "success",
+    data: {
+      candidate,
+    },
+  });
+}
+
+export async function withdrawCoverageResponseController(
+  req: WithdrawCoverageResponseRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const candidate =
+    await withdrawCoverageResponse(
+      req.auth.storeId,
+      req.auth.membershipId,
+      req.params.id,
+    );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      candidate,
     },
   });
 }

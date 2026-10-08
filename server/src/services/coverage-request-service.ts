@@ -776,3 +776,421 @@ export async function createManagerCoverageRequest(
     throw error;
   }
 }
+
+export async function listPublicCoverageRequests(
+  storeId: string,
+  membershipId: string,
+) {
+  const now = new Date();
+
+  return prisma.coverageRequest.findMany({
+    where: {
+      storeId,
+      status: "OPEN",
+
+      responseDeadline: {
+        gt: now,
+      },
+
+      requestedStartAt: {
+        gt: now,
+      },
+
+      originalAssigneeMembershipId: {
+        not: membershipId,
+      },
+    },
+
+    orderBy: {
+      requestedStartAt: "asc",
+    },
+
+    select: {
+      id: true,
+      shiftId: true,
+      requestedStartAt: true,
+      requestedEndAt: true,
+      status: true,
+      responseDeadline: true,
+      createdAt: true,
+
+      shift: {
+        select: {
+          status: true,
+
+          scheduleDay: {
+            select: {
+              scheduleDate: true,
+              status: true,
+            },
+          },
+        },
+      },
+
+      originalAssignee: {
+        select: {
+          id: true,
+          colorKey: true,
+
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+
+      candidates: {
+        where: {
+          membershipId,
+        },
+
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          respondedAt: true,
+        },
+      },
+    },
+  });
+}
+
+export async function volunteerForCoverageRequest(
+  storeId: string,
+  membershipId: string,
+  coverageRequestId: string,
+) {
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const coverageRequest =
+          await transaction
+            .coverageRequest
+            .findFirst({
+              where: {
+                id: coverageRequestId,
+                storeId,
+              },
+
+              select: {
+                id: true,
+                status: true,
+                originalAssigneeMembershipId:
+                  true,
+                requestedStartAt: true,
+                requestedEndAt: true,
+                responseDeadline: true,
+
+                shift: {
+                  select: {
+                    status: true,
+                    startAt: true,
+                  },
+                },
+              },
+            });
+
+        if (!coverageRequest) {
+          throw new AppError(
+            404,
+            "COVERAGE_REQUEST_NOT_FOUND",
+            "Coverage request not found",
+          );
+        }
+
+        if (
+          coverageRequest.status !==
+          "OPEN"
+        ) {
+          throw new AppError(
+            409,
+            "COVERAGE_REQUEST_NOT_OPEN",
+            "Only an open coverage request accepts volunteers",
+          );
+        }
+
+        if (
+          coverageRequest.shift.status !==
+          "ACTIVE"
+        ) {
+          throw new AppError(
+            409,
+            "SHIFT_NOT_ACTIVE",
+            "The related shift is not active",
+          );
+        }
+
+        const now = new Date();
+
+        if (
+          coverageRequest.shift.startAt
+            .getTime() <= now.getTime()
+        ) {
+          throw new AppError(
+            409,
+            "SHIFT_ALREADY_STARTED",
+            "Volunteering is not allowed after the shift start time",
+          );
+        }
+
+        if (
+          !coverageRequest.responseDeadline ||
+          coverageRequest.responseDeadline
+            .getTime() <= now.getTime()
+        ) {
+          throw new AppError(
+            409,
+            "RESPONSE_DEADLINE_PASSED",
+            "The response deadline has passed",
+          );
+        }
+
+        if (
+          coverageRequest
+            .originalAssigneeMembershipId ===
+          membershipId
+        ) {
+          throw new AppError(
+            409,
+            "CANNOT_VOLUNTEER_FOR_OWN_SHIFT",
+            "A member cannot volunteer for their own assigned shift",
+          );
+        }
+
+        const existingCandidate =
+          await transaction
+            .coverageCandidate
+            .findUnique({
+              where: {
+                coverageRequestId_membershipId:
+                  {
+                    coverageRequestId:
+                      coverageRequest.id,
+                    membershipId,
+                  },
+              },
+
+              select: {
+                id: true,
+                status: true,
+              },
+            });
+
+        if (existingCandidate) {
+          throw new AppError(
+            409,
+            "COVERAGE_RESPONSE_ALREADY_EXISTS",
+            "This member already has a response for the coverage request",
+          );
+        }
+
+        const overlappingShift =
+          await transaction.shift.findFirst({
+            where: {
+              assigneeMembershipId:
+                membershipId,
+              status: "ACTIVE",
+
+              scheduleDay: {
+                storeId,
+              },
+
+              startAt: {
+                lt: coverageRequest
+                  .requestedEndAt,
+              },
+
+              endAt: {
+                gt: coverageRequest
+                  .requestedStartAt,
+              },
+            },
+
+            select: {
+              id: true,
+              startAt: true,
+              endAt: true,
+            },
+          });
+
+        if (overlappingShift) {
+          throw new AppError(
+            409,
+            "VOLUNTEER_HAS_OVERLAPPING_SHIFT",
+            "A member with an overlapping shift cannot volunteer",
+            {
+              shiftId:
+                overlappingShift.id,
+              startAt:
+                overlappingShift.startAt,
+              endAt:
+                overlappingShift.endAt,
+            },
+          );
+        }
+
+        return transaction
+          .coverageCandidate
+          .create({
+            data: {
+              coverageRequestId:
+                coverageRequest.id,
+              membershipId,
+              type: "VOLUNTEER",
+              status: "AVAILABLE",
+              respondedAt: now,
+            },
+
+            select: {
+              id: true,
+              coverageRequestId: true,
+              membershipId: true,
+              type: true,
+              status: true,
+              respondedAt: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          });
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new AppError(
+        409,
+        "COVERAGE_RESPONSE_ALREADY_EXISTS",
+        "This member already has a response for the coverage request",
+      );
+    }
+
+    throw error;
+  }
+}
+
+export async function withdrawCoverageResponse(
+  storeId: string,
+  membershipId: string,
+  coverageRequestId: string,
+) {
+  return prisma.$transaction(
+    async (transaction) => {
+      const coverageRequest =
+        await transaction.coverageRequest.findFirst({
+          where: {
+            id: coverageRequestId,
+            storeId,
+          },
+          select: {
+            id: true,
+            status: true,
+            shift: {
+              select: {
+                startAt: true,
+              },
+            },
+          },
+        });
+
+      if (!coverageRequest) {
+        throw new AppError(
+          404,
+          "COVERAGE_REQUEST_NOT_FOUND",
+          "Coverage request not found",
+        );
+      }
+
+      if (coverageRequest.status !== "OPEN") {
+        throw new AppError(
+          409,
+          "COVERAGE_REQUEST_NOT_OPEN",
+          "Only an open coverage request allows withdrawal",
+        );
+      }
+
+      if (
+        coverageRequest.shift.startAt.getTime() <=
+        Date.now()
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_ALREADY_STARTED",
+          "A coverage response cannot be withdrawn after the shift start time",
+        );
+      }
+
+      const candidate =
+        await transaction.coverageCandidate.findUnique({
+          where: {
+            coverageRequestId_membershipId: {
+              coverageRequestId:
+                coverageRequest.id,
+              membershipId,
+            },
+          },
+          select: {
+            id: true,
+            type: true,
+            status: true,
+          },
+        });
+
+      if (!candidate) {
+        throw new AppError(
+          404,
+          "COVERAGE_RESPONSE_NOT_FOUND",
+          "Coverage response not found",
+        );
+      }
+
+      if (candidate.status !== "AVAILABLE") {
+        throw new AppError(
+          409,
+          "COVERAGE_RESPONSE_NOT_WITHDRAWABLE",
+          "Only an available response can be withdrawn",
+        );
+      }
+
+      const updateResult =
+        await transaction.coverageCandidate.updateMany({
+          where: {
+            id: candidate.id,
+            status: "AVAILABLE",
+          },
+          data: {
+            status: "WITHDRAWN",
+          },
+        });
+
+      if (updateResult.count !== 1) {
+        throw new AppError(
+          409,
+          "COVERAGE_RESPONSE_STATE_CHANGED",
+          "The coverage response state has changed",
+        );
+      }
+
+      return transaction.coverageCandidate.findUniqueOrThrow({
+        where: {
+          id: candidate.id,
+        },
+        select: {
+          id: true,
+          coverageRequestId: true,
+          membershipId: true,
+          type: true,
+          status: true,
+          respondedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    },
+    {
+      isolationLevel: "Serializable",
+    },
+  );
+}
