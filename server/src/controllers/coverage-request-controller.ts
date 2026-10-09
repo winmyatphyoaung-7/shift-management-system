@@ -27,6 +27,7 @@ import {
   acceptDirectOffer,
   declineDirectOffer,
   finalApproveCoverageRequest,
+  cancelCoverageRequest,
 } from "../services/coverage-request-service.js";
 
 type CreateStaffCoverageRequest =
@@ -76,6 +77,10 @@ type FinalApproveCoverageRequest =
     unknown,
     FinalApproveCoverageRequestBody
   >;
+
+type CancelCoverageRequest =
+  Request<CoverageRequestIdParams>;
+
 export async function createStaffCoverageRequestController(
   req: CreateStaffCoverageRequest,
   res: Response,
@@ -393,6 +398,33 @@ export async function finalApproveCoverageRequestController(
       req.auth.membershipId,
       req.params.id,
       req.body,
+    );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      coverageRequest,
+    },
+  });
+}
+
+export async function cancelCoverageRequestController(
+  req: CancelCoverageRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const coverageRequest =
+    await cancelCoverageRequest(
+      req.auth.storeId,
+      req.auth.membershipId,
+      req.params.id,
     );
 
   res.status(200).json({

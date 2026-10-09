@@ -2026,3 +2026,156 @@ export async function finalApproveCoverageRequest(
     throw error;
   }
 }
+
+export async function cancelCoverageRequest(
+  storeId: string,
+  requesterMembershipId: string,
+  coverageRequestId: string,
+) {
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const coverageRequest =
+          await transaction.coverageRequest.findFirst({
+            where: {
+              id: coverageRequestId,
+              storeId,
+            },
+            select: {
+              id: true,
+              requesterMembershipId: true,
+              status: true,
+
+              shift: {
+                select: {
+                  id: true,
+                  status: true,
+                  startAt: true,
+                },
+              },
+            },
+          });
+
+        if (!coverageRequest) {
+          throw new AppError(
+            404,
+            "COVERAGE_REQUEST_NOT_FOUND",
+            "Coverage request not found",
+          );
+        }
+
+        if (
+          coverageRequest.requesterMembershipId !==
+          requesterMembershipId
+        ) {
+          throw new AppError(
+            403,
+            "COVERAGE_REQUEST_NOT_OWNED",
+            "Only the original requester can cancel this coverage request",
+          );
+        }
+
+        if (
+          coverageRequest.status !== "PENDING_REVIEW" &&
+          coverageRequest.status !== "OPEN"
+        ) {
+          throw new AppError(
+            409,
+            "COVERAGE_REQUEST_NOT_CANCELLABLE",
+            "Only a pending or open coverage request can be cancelled",
+          );
+        }
+
+        if (
+          coverageRequest.shift.startAt.getTime() <=
+          Date.now()
+        ) {
+          throw new AppError(
+            409,
+            "SHIFT_ALREADY_STARTED",
+            "A coverage request cannot be cancelled after the shift start time",
+          );
+        }
+
+        const requestUpdate =
+          await transaction.coverageRequest.updateMany({
+            where: {
+              id: coverageRequest.id,
+              requesterMembershipId,
+              status: {
+                in: [
+                  "PENDING_REVIEW",
+                  "OPEN",
+                ],
+              },
+            },
+            data: {
+              status: "CANCELLED",
+            },
+          });
+
+        if (requestUpdate.count !== 1) {
+          throw new AppError(
+            409,
+            "COVERAGE_REQUEST_STATE_CHANGED",
+            "The coverage request state has changed",
+          );
+        }
+
+        await transaction.coverageCandidate.updateMany({
+          where: {
+            coverageRequestId:
+              coverageRequest.id,
+            status: {
+              in: [
+                "PENDING",
+                "AVAILABLE",
+              ],
+            },
+          },
+          data: {
+            status: "EXPIRED",
+          },
+        });
+
+        return transaction.coverageRequest.findUniqueOrThrow({
+          where: {
+            id: coverageRequest.id,
+          },
+          select: {
+            id: true,
+            shiftId: true,
+            requesterMembershipId: true,
+            status: true,
+            updatedAt: true,
+
+            candidates: {
+              orderBy: {
+                createdAt: "asc",
+              },
+              select: {
+                id: true,
+                membershipId: true,
+                type: true,
+                status: true,
+              },
+            },
+          },
+        });
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+  } catch (error) {
+    if (isTransactionConflictError(error)) {
+      throw new AppError(
+        409,
+        "COVERAGE_REQUEST_CANCEL_CONFLICT",
+        "The coverage request was changed by another operation",
+      );
+    }
+
+    throw error;
+  }
+}

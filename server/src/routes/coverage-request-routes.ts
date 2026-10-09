@@ -13,6 +13,7 @@ import {
   acceptDirectOfferController,
   declineDirectOfferController,
   finalApproveCoverageRequestController,
+  cancelCoverageRequestController,
 } from "../controllers/coverage-request-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
@@ -98,6 +99,16 @@ coverageRequestRouter.post(
     finalApproveCoverageRequestBodySchema,
   ),
   finalApproveCoverageRequestController,
+);
+
+coverageRequestRouter.post(
+  "/:id/cancel",
+  requireAuth,
+  requirePasswordChanged,
+  validateParams(
+    coverageRequestIdParamsSchema,
+  ),
+  cancelCoverageRequestController,
 );
 
 coverageRequestRouter.post(
