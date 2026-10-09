@@ -7,6 +7,7 @@ import type {
   RejectCoverageRequestBody,
   CreateManagerCoverageRequestBody,
   SendDirectOffersBody,
+  FinalApproveCoverageRequestBody,
 } from "../schemas/coverage-request-schema.js";
 
 const STAFF_REQUEST_NOTICE_DAYS = 7;
@@ -26,6 +27,17 @@ function isUniqueConstraintError(
     error !== null &&
     "code" in error &&
     error.code === "P2002"
+  );
+}
+
+function isTransactionConflictError(
+  error: unknown,
+): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2034"
   );
 }
 
@@ -116,7 +128,7 @@ export async function createStaffCoverageRequest(
         const minimumAllowedStartAt =
           new Date(
             now.getTime() +
-              STAFF_REQUEST_NOTICE_MS,
+            STAFF_REQUEST_NOTICE_MS,
           );
 
         if (
@@ -231,8 +243,8 @@ export async function listManagerCoverageRequests(
 
       ...(query.status
         ? {
-            status: query.status,
-          }
+          status: query.status,
+        }
         : {}),
     },
 
@@ -300,6 +312,37 @@ export async function listManagerCoverageRequests(
           user: {
             select: {
               name: true,
+            },
+          },
+        },
+      },
+
+      candidates: {
+        orderBy: {
+          createdAt: "asc",
+        },
+
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          respondedAt: true,
+          createdAt: true,
+          updatedAt: true,
+
+          membership: {
+            select: {
+              id: true,
+              loginId: true,
+              role: true,
+              status: true,
+              colorKey: true,
+
+              user: {
+                select: {
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -965,11 +1008,11 @@ export async function volunteerForCoverageRequest(
             .findUnique({
               where: {
                 coverageRequestId_membershipId:
-                  {
-                    coverageRequestId:
-                      coverageRequest.id,
-                    membershipId,
-                  },
+                {
+                  coverageRequestId:
+                    coverageRequest.id,
+                  membershipId,
+                },
               },
 
               select: {
@@ -1266,7 +1309,7 @@ export async function sendDirectOffers(
         if (
           !coverageRequest.responseDeadline ||
           coverageRequest.responseDeadline.getTime() <=
-            now.getTime()
+          now.getTime()
         ) {
           throw new AppError(
             409,
@@ -1553,7 +1596,7 @@ async function respondToDirectOffer(
         if (
           !coverageRequest.responseDeadline ||
           coverageRequest.responseDeadline.getTime() <=
-            now.getTime()
+          now.getTime()
         ) {
           throw new AppError(
             409,
@@ -1674,4 +1717,312 @@ export function declineDirectOffer(
     coverageRequestId,
     "DECLINE",
   );
+}
+
+export async function finalApproveCoverageRequest(
+  storeId: string,
+  managerMembershipId: string,
+  coverageRequestId: string,
+  input: FinalApproveCoverageRequestBody,
+) {
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const coverageRequest =
+          await transaction.coverageRequest.findFirst({
+            where: {
+              id: coverageRequestId,
+              storeId,
+            },
+            select: {
+              id: true,
+              status: true,
+              originalAssigneeMembershipId: true,
+              requestedStartAt: true,
+              requestedEndAt: true,
+
+              shift: {
+                select: {
+                  id: true,
+                  assigneeMembershipId: true,
+                  status: true,
+                  startAt: true,
+                },
+              },
+            },
+          });
+
+        if (!coverageRequest) {
+          throw new AppError(
+            404,
+            "COVERAGE_REQUEST_NOT_FOUND",
+            "Coverage request not found",
+          );
+        }
+
+        if (coverageRequest.status !== "OPEN") {
+          throw new AppError(
+            409,
+            "COVERAGE_REQUEST_NOT_OPEN",
+            "Only an open coverage request can receive final approval",
+          );
+        }
+
+        if (coverageRequest.shift.status !== "ACTIVE") {
+          throw new AppError(
+            409,
+            "SHIFT_NOT_ACTIVE",
+            "The related shift is not active",
+          );
+        }
+
+        const now = new Date();
+
+        if (
+          coverageRequest.shift.startAt.getTime() <=
+          now.getTime()
+        ) {
+          throw new AppError(
+            409,
+            "SHIFT_ALREADY_STARTED",
+            "Final approval is not allowed after the shift start time",
+          );
+        }
+
+        const candidate =
+          await transaction.coverageCandidate.findFirst({
+            where: {
+              id: input.selectedCandidateId,
+              coverageRequestId:
+                coverageRequest.id,
+            },
+            select: {
+              id: true,
+              membershipId: true,
+              type: true,
+              status: true,
+
+              membership: {
+                select: {
+                  storeId: true,
+                  role: true,
+                  status: true,
+                },
+              },
+            },
+          });
+
+        if (!candidate) {
+          throw new AppError(
+            404,
+            "COVERAGE_CANDIDATE_NOT_FOUND",
+            "Coverage candidate not found",
+          );
+        }
+
+        if (candidate.status !== "AVAILABLE") {
+          throw new AppError(
+            409,
+            "COVERAGE_CANDIDATE_NOT_AVAILABLE",
+            "Only an available candidate can be selected",
+          );
+        }
+
+        if (
+          candidate.membership.storeId !== storeId ||
+          candidate.membership.role !== "STAFF" ||
+          candidate.membership.status !== "ACTIVE"
+        ) {
+          throw new AppError(
+            409,
+            "COVERAGE_CANDIDATE_NOT_ELIGIBLE",
+            "The selected candidate is not eligible",
+          );
+        }
+
+        if (
+          candidate.membershipId ===
+          coverageRequest.originalAssigneeMembershipId
+        ) {
+          throw new AppError(
+            409,
+            "CANNOT_SELECT_ORIGINAL_ASSIGNEE",
+            "The original assignee cannot be selected as the replacement",
+          );
+        }
+
+        const overlappingShift =
+          await transaction.shift.findFirst({
+            where: {
+              assigneeMembershipId:
+                candidate.membershipId,
+              status: "ACTIVE",
+              scheduleDay: {
+                storeId,
+              },
+              startAt: {
+                lt: coverageRequest.requestedEndAt,
+              },
+              endAt: {
+                gt: coverageRequest.requestedStartAt,
+              },
+            },
+            select: {
+              id: true,
+              startAt: true,
+              endAt: true,
+            },
+          });
+
+        if (overlappingShift) {
+          throw new AppError(
+            409,
+            "COVERAGE_CANDIDATE_HAS_OVERLAPPING_SHIFT",
+            "The selected candidate has an overlapping shift",
+            {
+              shiftId: overlappingShift.id,
+              startAt: overlappingShift.startAt,
+              endAt: overlappingShift.endAt,
+            },
+          );
+        }
+
+        const requestUpdate =
+          await transaction.coverageRequest.updateMany({
+            where: {
+              id: coverageRequest.id,
+              status: "OPEN",
+            },
+            data: {
+              status: "APPROVED",
+              selectedCandidateId:
+                candidate.id,
+              approvedByMembershipId:
+                managerMembershipId,
+              approvedAt: now,
+            },
+          });
+
+        if (requestUpdate.count !== 1) {
+          throw new AppError(
+            409,
+            "COVERAGE_REQUEST_STATE_CHANGED",
+            "The coverage request state has changed",
+          );
+        }
+
+        const candidateUpdate =
+          await transaction.coverageCandidate.updateMany({
+            where: {
+              id: candidate.id,
+              status: "AVAILABLE",
+            },
+            data: {
+              status: "SELECTED",
+            },
+          });
+
+        if (candidateUpdate.count !== 1) {
+          throw new AppError(
+            409,
+            "COVERAGE_CANDIDATE_STATE_CHANGED",
+            "The selected candidate state has changed",
+          );
+        }
+
+        const shiftUpdate =
+          await transaction.shift.updateMany({
+            where: {
+              id: coverageRequest.shift.id,
+              status: "ACTIVE",
+              assigneeMembershipId:
+                coverageRequest
+                  .originalAssigneeMembershipId,
+            },
+            data: {
+              assigneeMembershipId:
+                candidate.membershipId,
+              updatedByMembershipId:
+                managerMembershipId,
+            },
+          });
+
+        if (shiftUpdate.count !== 1) {
+          throw new AppError(
+            409,
+            "SHIFT_ASSIGNMENT_STATE_CHANGED",
+            "The shift assignment state has changed",
+          );
+        }
+
+        await transaction.coverageCandidate.updateMany({
+          where: {
+            coverageRequestId:
+              coverageRequest.id,
+            id: {
+              not: candidate.id,
+            },
+            status: {
+              in: [
+                "PENDING",
+                "AVAILABLE",
+              ],
+            },
+          },
+          data: {
+            status: "NOT_SELECTED",
+          },
+        });
+
+        return transaction.coverageRequest.findUniqueOrThrow({
+          where: {
+            id: coverageRequest.id,
+          },
+          select: {
+            id: true,
+            status: true,
+            approvedAt: true,
+            approvedByMembershipId: true,
+            selectedCandidateId: true,
+
+            shift: {
+              select: {
+                id: true,
+                assigneeMembershipId: true,
+                startAt: true,
+                endAt: true,
+                status: true,
+              },
+            },
+
+            candidates: {
+              orderBy: {
+                createdAt: "asc",
+              },
+              select: {
+                id: true,
+                membershipId: true,
+                type: true,
+                status: true,
+                respondedAt: true,
+              },
+            },
+          },
+        });
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+  } catch (error) {
+    if (isTransactionConflictError(error)) {
+      throw new AppError(
+        409,
+        "FINAL_APPROVAL_CONFLICT",
+        "The coverage request was changed by another operation",
+      );
+    }
+
+    throw error;
+  }
 }

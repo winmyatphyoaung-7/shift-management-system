@@ -134,3 +134,15 @@ export const sendDirectOffersBodySchema = z
 export type SendDirectOffersBody = z.infer<
   typeof sendDirectOffersBodySchema
 >;
+
+export const finalApproveCoverageRequestBodySchema = z
+  .object({
+    selectedCandidateId: z.uuid(
+      "Selected candidate ID must be a valid UUID",
+    ),
+  })
+  .strict();
+
+export type FinalApproveCoverageRequestBody = z.infer<
+  typeof finalApproveCoverageRequestBodySchema
+>;

@@ -12,6 +12,7 @@ import {
   sendDirectOffersController,
   acceptDirectOfferController,
   declineDirectOfferController,
+  finalApproveCoverageRequestController,
 } from "../controllers/coverage-request-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
@@ -28,6 +29,7 @@ import {
   rejectCoverageRequestBodySchema,
   createManagerCoverageRequestBodySchema,
   sendDirectOffersBodySchema,
+  finalApproveCoverageRequestBodySchema,
 } from "../schemas/coverage-request-schema.js";
 
 export const coverageRequestRouter =
@@ -82,6 +84,20 @@ coverageRequestRouter.post(
     approveCoverageRequestBodySchema,
   ),
   approveAndOpenCoverageRequestController,
+);
+
+coverageRequestRouter.post(
+  "/:id/final-approve",
+  requireAuth,
+  requirePasswordChanged,
+  requireManager,
+  validateParams(
+    coverageRequestIdParamsSchema,
+  ),
+  validateBody(
+    finalApproveCoverageRequestBodySchema,
+  ),
+  finalApproveCoverageRequestController,
 );
 
 coverageRequestRouter.post(
