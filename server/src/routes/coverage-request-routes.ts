@@ -14,6 +14,7 @@ import {
   declineDirectOfferController,
   finalApproveCoverageRequestController,
   cancelCoverageRequestController,
+  listMyCoverageActivityController,
 } from "../controllers/coverage-request-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
@@ -167,6 +168,14 @@ coverageRequestRouter.post(
     coverageRequestIdParamsSchema,
   ),
   withdrawCoverageResponseController,
+);
+
+coverageRequestRouter.get(
+  "/mine",
+  requireAuth,
+  requirePasswordChanged,
+  requireStaff,
+  listMyCoverageActivityController,
 );
 
 coverageRequestRouter.get(

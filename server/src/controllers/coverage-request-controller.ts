@@ -28,6 +28,7 @@ import {
   declineDirectOffer,
   finalApproveCoverageRequest,
   cancelCoverageRequest,
+  listMyCoverageActivity,
 } from "../services/coverage-request-service.js";
 
 type CreateStaffCoverageRequest =
@@ -432,5 +433,29 @@ export async function cancelCoverageRequestController(
     data: {
       coverageRequest,
     },
+  });
+}
+
+export async function listMyCoverageActivityController(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const activity =
+    await listMyCoverageActivity(
+      req.auth.storeId,
+      req.auth.membershipId,
+    );
+
+  res.status(200).json({
+    status: "success",
+    data: activity,
   });
 }

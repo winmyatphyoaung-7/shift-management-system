@@ -2179,3 +2179,155 @@ export async function cancelCoverageRequest(
     throw error;
   }
 }
+
+export async function listMyCoverageActivity(
+  storeId: string,
+  membershipId: string,
+) {
+  const [
+    coverageRequests,
+    candidacies,
+  ] = await Promise.all([
+    prisma.coverageRequest.findMany({
+      where: {
+        storeId,
+        requesterMembershipId:
+          membershipId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        shiftId: true,
+        source: true,
+        reasonCategory: true,
+        reasonDetails: true,
+        requestedStartAt: true,
+        requestedEndAt: true,
+        status: true,
+        responseDeadline: true,
+        rejectionNote: true,
+        approvedAt: true,
+        selectedCandidateId: true,
+        createdAt: true,
+        updatedAt: true,
+
+        shift: {
+          select: {
+            id: true,
+            status: true,
+            startAt: true,
+            endAt: true,
+
+            scheduleDay: {
+              select: {
+                scheduleDate: true,
+                status: true,
+              },
+            },
+
+            assignee: {
+              select: {
+                id: true,
+                colorKey: true,
+
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+
+        _count: {
+          select: {
+            candidates: true,
+          },
+        },
+      },
+    }),
+
+    prisma.coverageCandidate.findMany({
+      where: {
+        membershipId,
+
+        coverageRequest: {
+          storeId,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        type: true,
+        status: true,
+        respondedAt: true,
+        createdAt: true,
+        updatedAt: true,
+
+        coverageRequest: {
+          select: {
+            id: true,
+            shiftId: true,
+            source: true,
+            requestedStartAt: true,
+            requestedEndAt: true,
+            status: true,
+            responseDeadline: true,
+            approvedAt: true,
+            selectedCandidateId: true,
+            createdAt: true,
+
+            shift: {
+              select: {
+                status: true,
+
+                scheduleDay: {
+                  select: {
+                    scheduleDate: true,
+                    status: true,
+                  },
+                },
+
+                assignee: {
+                  select: {
+                    id: true,
+                    colorKey: true,
+
+                    user: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+
+            originalAssignee: {
+              select: {
+                id: true,
+                colorKey: true,
+
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    coverageRequests,
+    candidacies,
+  };
+}
