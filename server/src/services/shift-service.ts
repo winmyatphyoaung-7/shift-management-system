@@ -398,6 +398,22 @@ export async function updateShift(
             assigneeMembershipId: true,
             shiftPresetId: true,
 
+            coverageRequests: {
+              where: {
+                status: {
+                  in: [
+                    "PENDING_REVIEW",
+                    "OPEN",
+                  ],
+                },
+              },
+              take: 1,
+              select: {
+                id: true,
+                status: true,
+              },
+            },
+
             scheduleDay: {
               select: {
                 status: true,
@@ -418,6 +434,22 @@ export async function updateShift(
           404,
           "SHIFT_NOT_FOUND",
           "Shift not found",
+        );
+      }
+
+      if (
+        existingShift.coverageRequests.length >
+        0
+      ) {
+        throw new AppError(
+          409,
+          "SHIFT_HAS_ACTIVE_COVERAGE_REQUEST",
+          "A shift with an active coverage request cannot be edited",
+          {
+            coverageRequestId:
+              existingShift.coverageRequests[0]
+                ?.id,
+          },
         );
       }
 
@@ -682,6 +714,22 @@ export async function removeShift(
             status: true,
             startAt: true,
 
+            coverageRequests: {
+              where: {
+                status: {
+                  in: [
+                    "PENDING_REVIEW",
+                    "OPEN",
+                  ],
+                },
+              },
+              take: 1,
+              select: {
+                id: true,
+                status: true,
+              },
+            },
+
             scheduleDay: {
               select: {
                 status: true,
@@ -695,6 +743,18 @@ export async function removeShift(
           404,
           "SHIFT_NOT_FOUND",
           "Shift not found",
+        );
+      }
+
+      if (shift.coverageRequests.length > 0) {
+        throw new AppError(
+          409,
+          "SHIFT_HAS_ACTIVE_COVERAGE_REQUEST",
+          "A shift with an active coverage request cannot be deleted or cancelled",
+          {
+            coverageRequestId:
+              shift.coverageRequests[0]?.id,
+          },
         );
       }
 
