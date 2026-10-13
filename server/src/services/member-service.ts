@@ -390,8 +390,86 @@ export async function deactivateStoreMember(
         );
       }
 
-      // Add the unresolved coverage-request
-      // check when that model exists.
+      const unresolvedCoverageActivity =
+        await transaction.coverageRequest.findFirst({
+          where: {
+            storeId,
+            status: {
+              in: [
+                "PENDING_REVIEW",
+                "OPEN",
+              ],
+            },
+
+            OR: [
+              {
+                originalAssigneeMembershipId:
+                  membership.id,
+              },
+              {
+                requesterMembershipId:
+                  membership.id,
+              },
+              {
+                candidates: {
+                  some: {
+                    membershipId:
+                      membership.id,
+                    status: {
+                      in: [
+                        "PENDING",
+                        "AVAILABLE",
+                      ],
+                    },
+                  },
+                },
+              },
+            ],
+          },
+          select: {
+            id: true,
+            shiftId: true,
+            status: true,
+
+            candidates: {
+              where: {
+                membershipId:
+                  membership.id,
+                status: {
+                  in: [
+                    "PENDING",
+                    "AVAILABLE",
+                  ],
+                },
+              },
+              take: 1,
+              select: {
+                id: true,
+                type: true,
+                status: true,
+              },
+            },
+          },
+        });
+
+      if (unresolvedCoverageActivity) {
+        throw new AppError(
+          409,
+          "MEMBER_HAS_UNRESOLVED_COVERAGE_ACTIVITY",
+          "A member with unresolved coverage activity cannot be deactivated",
+          {
+            coverageRequestId:
+              unresolvedCoverageActivity.id,
+            shiftId:
+              unresolvedCoverageActivity.shiftId,
+            requestStatus:
+              unresolvedCoverageActivity.status,
+            candidate:
+              unresolvedCoverageActivity
+                .candidates[0] ?? null,
+          },
+        );
+      }
 
       await transaction.storeMember.update({
         where: {
