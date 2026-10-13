@@ -15,6 +15,7 @@ import {
   finalApproveCoverageRequestController,
   cancelCoverageRequestController,
   listMyCoverageActivityController,
+  extendCoverageRequestDeadlineController,
 } from "../controllers/coverage-request-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
@@ -100,6 +101,20 @@ coverageRequestRouter.post(
     finalApproveCoverageRequestBodySchema,
   ),
   finalApproveCoverageRequestController,
+);
+
+coverageRequestRouter.post(
+  "/:id/extend-deadline",
+  requireAuth,
+  requirePasswordChanged,
+  requireManager,
+  validateParams(
+    coverageRequestIdParamsSchema,
+  ),
+  validateBody(
+    approveCoverageRequestBodySchema,
+  ),
+  extendCoverageRequestDeadlineController,
 );
 
 coverageRequestRouter.post(

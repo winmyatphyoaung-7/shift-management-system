@@ -2331,3 +2331,154 @@ export async function listMyCoverageActivity(
     candidacies,
   };
 }
+
+export async function extendCoverageRequestDeadline(
+  storeId: string,
+  coverageRequestId: string,
+  input: ApproveCoverageRequestBody,
+) {
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const coverageRequest =
+          await transaction.coverageRequest.findFirst({
+            where: {
+              id: coverageRequestId,
+              storeId,
+            },
+            select: {
+              id: true,
+              status: true,
+              responseDeadline: true,
+
+              shift: {
+                select: {
+                  status: true,
+                  startAt: true,
+                },
+              },
+            },
+          });
+
+        if (!coverageRequest) {
+          throw new AppError(
+            404,
+            "COVERAGE_REQUEST_NOT_FOUND",
+            "Coverage request not found",
+          );
+        }
+
+        if (coverageRequest.status !== "OPEN") {
+          throw new AppError(
+            409,
+            "COVERAGE_REQUEST_NOT_OPEN",
+            "Only an open coverage request can have its deadline extended",
+          );
+        }
+
+        if (coverageRequest.shift.status !== "ACTIVE") {
+          throw new AppError(
+            409,
+            "SHIFT_NOT_ACTIVE",
+            "The related shift is not active",
+          );
+        }
+
+        const now = new Date();
+        const responseDeadline =
+          new Date(input.responseDeadline);
+
+        if (
+          coverageRequest.shift.startAt.getTime() <=
+          now.getTime()
+        ) {
+          throw new AppError(
+            409,
+            "SHIFT_ALREADY_STARTED",
+            "The deadline cannot be extended after the shift start time",
+          );
+        }
+
+        if (
+          responseDeadline.getTime() <=
+          now.getTime()
+        ) {
+          throw new AppError(
+            400,
+            "RESPONSE_DEADLINE_NOT_FUTURE",
+            "The response deadline must be in the future",
+          );
+        }
+
+        if (
+          responseDeadline.getTime() >=
+          coverageRequest.shift.startAt.getTime()
+        ) {
+          throw new AppError(
+            400,
+            "RESPONSE_DEADLINE_NOT_BEFORE_SHIFT",
+            "The response deadline must be before the shift start time",
+          );
+        }
+
+        if (
+          coverageRequest.responseDeadline &&
+          responseDeadline.getTime() <=
+            coverageRequest.responseDeadline.getTime()
+        ) {
+          throw new AppError(
+            400,
+            "RESPONSE_DEADLINE_NOT_EXTENDED",
+            "The new response deadline must be later than the current deadline",
+          );
+        }
+
+        const updateResult =
+          await transaction.coverageRequest.updateMany({
+            where: {
+              id: coverageRequest.id,
+              status: "OPEN",
+            },
+            data: {
+              responseDeadline,
+            },
+          });
+
+        if (updateResult.count !== 1) {
+          throw new AppError(
+            409,
+            "COVERAGE_REQUEST_STATE_CHANGED",
+            "The coverage request state has changed",
+          );
+        }
+
+        return transaction.coverageRequest.findUniqueOrThrow({
+          where: {
+            id: coverageRequest.id,
+          },
+          select: {
+            id: true,
+            status: true,
+            responseDeadline: true,
+            requestedStartAt: true,
+            requestedEndAt: true,
+            updatedAt: true,
+          },
+        });
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+  } catch (error) {
+    if (isTransactionConflictError(error)) {
+      throw new AppError(
+        409,
+        "COVERAGE_DEADLINE_UPDATE_CONFLICT",
+        "The coverage request was changed by another operation",
+      );
+    }
+
+    throw error;
+  }
+}

@@ -29,6 +29,7 @@ import {
   finalApproveCoverageRequest,
   cancelCoverageRequest,
   listMyCoverageActivity,
+  extendCoverageRequestDeadline,
 } from "../services/coverage-request-service.js";
 
 type CreateStaffCoverageRequest =
@@ -82,6 +83,11 @@ type FinalApproveCoverageRequest =
 type CancelCoverageRequest =
   Request<CoverageRequestIdParams>;
 
+type ExtendCoverageDeadlineRequest = Request<
+  CoverageRequestIdParams,
+  unknown,
+  ApproveCoverageRequestBody
+>;
 export async function createStaffCoverageRequestController(
   req: CreateStaffCoverageRequest,
   res: Response,
@@ -457,5 +463,32 @@ export async function listMyCoverageActivityController(
   res.status(200).json({
     status: "success",
     data: activity,
+  });
+}
+
+export async function extendCoverageRequestDeadlineController(
+  req: ExtendCoverageDeadlineRequest,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) {
+    throw new AppError(
+      401,
+      "UNAUTHORIZED",
+      "Authentication is required",
+    );
+  }
+
+  const coverageRequest =
+    await extendCoverageRequestDeadline(
+      req.auth.storeId,
+      req.params.id,
+      req.body,
+    );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      coverageRequest,
+    },
   });
 }
