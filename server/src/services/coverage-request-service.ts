@@ -41,6 +41,103 @@ function isTransactionConflictError(
   );
 }
 
+async function expireStaleCoverageRequests(
+  storeId: string,
+): Promise<void> {
+  const now = new Date();
+
+  for (
+    let attempt = 0;
+    attempt < 2;
+    attempt += 1
+  ) {
+    try {
+      await prisma.$transaction(
+        async (transaction) => {
+          const staleRequests =
+            await transaction.coverageRequest.findMany({
+              where: {
+                storeId,
+                status: {
+                  in: [
+                    "PENDING_REVIEW",
+                    "OPEN",
+                  ],
+                },
+                requestedStartAt: {
+                  lte: now,
+                },
+              },
+              select: {
+                id: true,
+              },
+            });
+
+          if (staleRequests.length === 0) {
+            return;
+          }
+
+          const coverageRequestIds =
+            staleRequests.map(
+              (request) => request.id,
+            );
+
+          await transaction.coverageRequest.updateMany({
+            where: {
+              id: {
+                in: coverageRequestIds,
+              },
+              status: {
+                in: [
+                  "PENDING_REVIEW",
+                  "OPEN",
+                ],
+              },
+              requestedStartAt: {
+                lte: now,
+              },
+            },
+            data: {
+              status: "EXPIRED",
+            },
+          });
+
+          await transaction.coverageCandidate.updateMany({
+            where: {
+              coverageRequestId: {
+                in: coverageRequestIds,
+              },
+              status: {
+                in: [
+                  "PENDING",
+                  "AVAILABLE",
+                ],
+              },
+            },
+            data: {
+              status: "EXPIRED",
+            },
+          });
+        },
+        {
+          isolationLevel: "Serializable",
+        },
+      );
+
+      return;
+    } catch (error) {
+      if (
+        isTransactionConflictError(error) &&
+        attempt === 0
+      ) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+}
+
 export async function createStaffCoverageRequest(
   storeId: string,
   requesterMembershipId: string,
@@ -237,6 +334,9 @@ export async function listManagerCoverageRequests(
   storeId: string,
   query: ListManagerCoverageRequestsQuery,
 ) {
+  await expireStaleCoverageRequests(
+    storeId,
+  );
   return prisma.coverageRequest.findMany({
     where: {
       storeId,
@@ -825,6 +925,9 @@ export async function listPublicCoverageRequests(
   storeId: string,
   membershipId: string,
 ) {
+  await expireStaleCoverageRequests(
+    storeId,
+  );
   const now = new Date();
 
   return prisma.coverageRequest.findMany({
@@ -2184,6 +2287,9 @@ export async function listMyCoverageActivity(
   storeId: string,
   membershipId: string,
 ) {
+  await expireStaleCoverageRequests(
+    storeId,
+  );
   const [
     coverageRequests,
     candidacies,
@@ -2424,7 +2530,7 @@ export async function extendCoverageRequestDeadline(
         if (
           coverageRequest.responseDeadline &&
           responseDeadline.getTime() <=
-            coverageRequest.responseDeadline.getTime()
+          coverageRequest.responseDeadline.getTime()
         ) {
           throw new AppError(
             400,

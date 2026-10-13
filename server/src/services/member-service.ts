@@ -400,6 +400,9 @@ export async function deactivateStoreMember(
                 "OPEN",
               ],
             },
+            requestedStartAt: {
+              gt: new Date(),
+            },
 
             OR: [
               {
