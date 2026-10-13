@@ -63,6 +63,28 @@ enum ReasonCategory {
   OTHER
 }
 
+enum NotificationType {
+  SCHEDULE_PUBLISHED
+  PUBLISHED_SHIFT_TIME_CHANGED
+  PUBLISHED_SHIFT_REASSIGNED
+  PUBLISHED_SHIFT_CANCELLED
+  COVERAGE_REQUEST_SUBMITTED
+  COVERAGE_REQUEST_OPENED
+  COVERAGE_REQUEST_REJECTED
+  COVERAGE_REQUEST_CANCELLED
+  COVERAGE_REQUEST_EXPIRED
+  DIRECT_OFFER_RECEIVED
+  DIRECT_OFFER_ACCEPTED
+  DIRECT_OFFER_DECLINED
+  DIRECT_OFFER_WITHDRAWN
+  VOLUNTEER_JOINED
+  VOLUNTEER_WITHDRAWN
+  CANDIDATE_SELECTED
+  CANDIDATE_NOT_SELECTED
+  COVERAGE_REPLACEMENT_APPROVED
+  COVERAGE_DEADLINE_EXTENDED
+}
+
 model Store {
   id       String @id @default(uuid()) @db.Uuid
   code     String @unique @db.VarChar(20)
@@ -73,6 +95,7 @@ model Store {
   shiftPresets     ShiftPreset[]
   scheduleDays     ScheduleDay[]
   coverageRequests CoverageRequest[]
+  notifications    Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -84,7 +107,8 @@ model User {
   passwordHash       String  @db.VarChar(255)
   mustChangePassword Boolean @default(true)
 
-  memberships StoreMember[]
+  memberships   StoreMember[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -280,4 +304,24 @@ model CoverageCandidate {
   @@unique([coverageRequestId, membershipId])
   @@index([coverageRequestId, status])
   @@index([membershipId, status])
+}
+
+model Notification {
+  id              String  @id @default(uuid()) @db.Uuid
+  recipientUserId String  @db.Uuid
+  storeId         String? @db.Uuid
+
+  type          NotificationType
+  title         String           @db.VarChar(150)
+  message       String           @db.VarChar(500)
+  referenceData Json?
+  readAt        DateTime?        @db.Timestamptz(3)
+
+  recipient User   @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  store     Store? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([recipientUserId, readAt, createdAt])
+  @@index([storeId, createdAt])
 }
