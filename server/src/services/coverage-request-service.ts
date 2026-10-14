@@ -1277,9 +1277,8 @@ export async function volunteerForCoverageRequest(
           );
         }
 
-        return transaction
-          .coverageCandidate
-          .create({
+        const candidate =
+          await transaction.coverageCandidate.create({
             data: {
               coverageRequestId:
                 coverageRequest.id,
@@ -1300,6 +1299,40 @@ export async function volunteerForCoverageRequest(
               updatedAt: true,
             },
           });
+
+        const managers =
+          await transaction.storeMember.findMany({
+            where: {
+              storeId,
+              role: "MANAGER",
+              status: "ACTIVE",
+            },
+            select: {
+              userId: true,
+            },
+          });
+
+        await createNotifications(
+          transaction,
+          managers.map((manager) => ({
+            recipientUserId:
+              manager.userId,
+            storeId,
+            type: "VOLUNTEER_JOINED",
+            title:
+              "New coverage volunteer",
+            message:
+              "A staff member volunteered to cover a shift.",
+            referenceData: {
+              coverageRequestId:
+                coverageRequest.id,
+              candidateId:
+                candidate.id,
+            },
+          })),
+        );
+
+        return candidate;
       },
       {
         isolationLevel: "Serializable",
@@ -1420,21 +1453,59 @@ export async function withdrawCoverageResponse(
         );
       }
 
-      return transaction.coverageCandidate.findUniqueOrThrow({
-        where: {
-          id: candidate.id,
-        },
-        select: {
-          id: true,
-          coverageRequestId: true,
-          membershipId: true,
-          type: true,
-          status: true,
-          respondedAt: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
+      const withdrawnCandidate =
+        await transaction.coverageCandidate.findUniqueOrThrow({
+          where: {
+            id: candidate.id,
+          },
+          select: {
+            id: true,
+            coverageRequestId: true,
+            membershipId: true,
+            type: true,
+            status: true,
+            respondedAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+      const managers =
+        await transaction.storeMember.findMany({
+          where: {
+            storeId,
+            role: "MANAGER",
+            status: "ACTIVE",
+          },
+          select: {
+            userId: true,
+          },
+        });
+
+      await createNotifications(
+        transaction,
+        managers.map((manager) => ({
+          recipientUserId:
+            manager.userId,
+          storeId,
+          type:
+            candidate.type === "VOLUNTEER"
+              ? "VOLUNTEER_WITHDRAWN"
+              : "DIRECT_OFFER_WITHDRAWN",
+          title:
+            "Coverage response withdrawn",
+          message:
+            "A staff member withdrew their coverage response.",
+          referenceData: {
+            coverageRequestId:
+              coverageRequest.id,
+            candidateId:
+              candidate.id,
+          },
+        })),
+      );
+
+      return withdrawnCandidate;
     },
     {
       isolationLevel: "Serializable",
