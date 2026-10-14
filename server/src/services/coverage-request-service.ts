@@ -519,6 +519,12 @@ export async function approveAndOpenCoverageRequest(
               id: true,
               status: true,
 
+              requester: {
+                select: {
+                  userId: true,
+                },
+              },
+
               shift: {
                 select: {
                   id: true,
@@ -623,9 +629,8 @@ export async function approveAndOpenCoverageRequest(
         );
       }
 
-      return transaction
-        .coverageRequest
-        .findUniqueOrThrow({
+      const openedRequest =
+        await transaction.coverageRequest.findUniqueOrThrow({
           where: {
             id: coverageRequest.id,
           },
@@ -645,6 +650,31 @@ export async function approveAndOpenCoverageRequest(
             updatedAt: true,
           },
         });
+
+      await createNotifications(
+        transaction,
+        [
+          {
+            recipientUserId:
+              coverageRequest.requester
+                .userId,
+            storeId,
+            type: "COVERAGE_REQUEST_OPENED",
+            title:
+              "Coverage request opened",
+            message:
+              "Your replacement request was approved and opened to eligible staff.",
+            referenceData: {
+              coverageRequestId:
+                coverageRequest.id,
+              shiftId:
+                coverageRequest.shift.id,
+            },
+          },
+        ],
+      );
+
+      return openedRequest;
     },
     {
       isolationLevel: "Serializable",
@@ -671,6 +701,12 @@ export async function rejectCoverageRequest(
             select: {
               id: true,
               status: true,
+
+              requester: {
+                select: {
+                  userId: true,
+                },
+              },
 
               shift: {
                 select: {
@@ -748,9 +784,8 @@ export async function rejectCoverageRequest(
         );
       }
 
-      return transaction
-        .coverageRequest
-        .findUniqueOrThrow({
+      const rejectedRequest =
+        await transaction.coverageRequest.findUniqueOrThrow({
           where: {
             id: coverageRequest.id,
           },
@@ -770,6 +805,29 @@ export async function rejectCoverageRequest(
             updatedAt: true,
           },
         });
+
+      await createNotifications(
+        transaction,
+        [
+          {
+            recipientUserId:
+              coverageRequest.requester
+                .userId,
+            storeId,
+            type: "COVERAGE_REQUEST_REJECTED",
+            title:
+              "Coverage request rejected",
+            message:
+              "Your replacement request was rejected by the manager.",
+            referenceData: {
+              coverageRequestId:
+                coverageRequest.id,
+            },
+          },
+        ],
+      );
+
+      return rejectedRequest;
     },
     {
       isolationLevel: "Serializable",
