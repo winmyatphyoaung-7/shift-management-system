@@ -1,6 +1,41 @@
-import { prisma } from "../lib/prisma.js";
+import type { Prisma } from "../generated/prisma/client.js";
 import { AppError } from "../errors/app-error.js";
+import { prisma } from "../lib/prisma.js";
 
+type CreateNotificationInput = {
+  recipientUserId: string;
+  storeId?: string | null;
+  type: Prisma.NotificationCreateManyInput["type"];
+  title: string;
+  message: string;
+  referenceData?: Prisma.InputJsonValue;
+};
+
+export async function createNotifications(
+  transaction: Prisma.TransactionClient,
+  inputs: CreateNotificationInput[],
+): Promise<void> {
+  if (inputs.length === 0) {
+    return;
+  }
+
+  await transaction.notification.createMany({
+    data: inputs.map((input) => ({
+      recipientUserId: input.recipientUserId,
+      storeId: input.storeId ?? null,
+      type: input.type,
+      title: input.title,
+      message: input.message,
+
+      ...(input.referenceData === undefined
+        ? {}
+        : {
+            referenceData:
+              input.referenceData,
+          }),
+    })),
+  });
+}
 export async function listNotifications(
   userId: string,
   storeId: string,

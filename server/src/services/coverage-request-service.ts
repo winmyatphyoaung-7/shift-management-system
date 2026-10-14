@@ -9,6 +9,7 @@ import type {
   SendDirectOffersBody,
   FinalApproveCoverageRequestBody,
 } from "../schemas/coverage-request-schema.js";
+import { createNotifications } from "./notification-service.js";
 
 const STAFF_REQUEST_NOTICE_DAYS = 7;
 
@@ -163,6 +164,16 @@ export async function createStaffCoverageRequest(
               endAt: true,
               status: true,
 
+              assignee: {
+                select: {
+                  user: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+
               scheduleDay: {
                 select: {
                   status: true,
@@ -272,9 +283,8 @@ export async function createStaffCoverageRequest(
           );
         }
 
-        return transaction
-          .coverageRequest
-          .create({
+        const coverageRequest =
+          await transaction.coverageRequest.create({
             data: {
               storeId,
               shiftId: shift.id,
@@ -312,6 +322,38 @@ export async function createStaffCoverageRequest(
               updatedAt: true,
             },
           });
+
+        const managers =
+          await transaction.storeMember.findMany({
+            where: {
+              storeId,
+              role: "MANAGER",
+              status: "ACTIVE",
+            },
+            select: {
+              userId: true,
+            },
+          });
+
+        await createNotifications(
+          transaction,
+          managers.map((manager) => ({
+            recipientUserId:
+              manager.userId,
+            storeId,
+            type: "COVERAGE_REQUEST_SUBMITTED",
+            title:
+              "Coverage request submitted",
+            message: `${shift.assignee.user.name} submitted a replacement request.`,
+            referenceData: {
+              coverageRequestId:
+                coverageRequest.id,
+              shiftId: shift.id,
+            },
+          })),
+        );
+
+        return coverageRequest;
       },
       {
         isolationLevel: "Serializable",
