@@ -1465,6 +1465,7 @@ export async function sendDirectOffers(
               responseDeadline: true,
               shift: {
                 select: {
+                  id: true,
                   status: true,
                   startAt: true,
                 },
@@ -1545,6 +1546,7 @@ export async function sendDirectOffers(
             },
             select: {
               id: true,
+              userId: true,
             },
           });
 
@@ -1650,28 +1652,51 @@ export async function sendDirectOffers(
           });
         }
 
-        return transaction.coverageCandidate.findMany({
-          where: {
-            coverageRequestId:
-              coverageRequest.id,
-            membershipId: {
-              in: input.membershipIds,
+        const candidates =
+          await transaction.coverageCandidate.findMany({
+            where: {
+              coverageRequestId:
+                coverageRequest.id,
+              membershipId: {
+                in: input.membershipIds,
+              },
             },
-          },
-          orderBy: {
-            createdAt: "asc",
-          },
-          select: {
-            id: true,
-            coverageRequestId: true,
-            membershipId: true,
-            type: true,
-            status: true,
-            respondedAt: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        });
+            orderBy: {
+              createdAt: "asc",
+            },
+            select: {
+              id: true,
+              coverageRequestId: true,
+              membershipId: true,
+              type: true,
+              status: true,
+              respondedAt: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          });
+
+        await createNotifications(
+          transaction,
+          eligibleMembers.map((member) => ({
+            recipientUserId:
+              member.userId,
+            storeId,
+            type: "DIRECT_OFFER_RECEIVED",
+            title:
+              "Coverage offer received",
+            message:
+              "You received a direct offer to cover a shift.",
+            referenceData: {
+              coverageRequestId:
+                coverageRequest.id,
+              shiftId:
+                coverageRequest.shift.id,
+            },
+          })),
+        );
+
+        return candidates;
       },
       {
         isolationLevel: "Serializable",
@@ -1773,6 +1798,16 @@ async function respondToDirectOffer(
             id: true,
             type: true,
             status: true,
+
+            membership: {
+              select: {
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         });
 
@@ -1874,21 +1909,63 @@ async function respondToDirectOffer(
         );
       }
 
-      return transaction.coverageCandidate.findUniqueOrThrow({
-        where: {
-          id: candidate.id,
-        },
-        select: {
-          id: true,
-          coverageRequestId: true,
-          membershipId: true,
-          type: true,
-          status: true,
-          respondedAt: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
+      const updatedCandidate =
+        await transaction.coverageCandidate.findUniqueOrThrow({
+          where: {
+            id: candidate.id,
+          },
+          select: {
+            id: true,
+            coverageRequestId: true,
+            membershipId: true,
+            type: true,
+            status: true,
+            respondedAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+      const managers =
+        await transaction.storeMember.findMany({
+          where: {
+            storeId,
+            role: "MANAGER",
+            status: "ACTIVE",
+          },
+          select: {
+            userId: true,
+          },
+        });
+
+      await createNotifications(
+        transaction,
+        managers.map((manager) => ({
+          recipientUserId:
+            manager.userId,
+          storeId,
+          type:
+            response === "ACCEPT"
+              ? "DIRECT_OFFER_ACCEPTED"
+              : "DIRECT_OFFER_DECLINED",
+          title:
+            response === "ACCEPT"
+              ? "Direct offer accepted"
+              : "Direct offer declined",
+          message:
+            response === "ACCEPT"
+              ? `${candidate.membership.user.name} accepted a direct coverage offer.`
+              : `${candidate.membership.user.name} declined a direct coverage offer.`,
+          referenceData: {
+            coverageRequestId:
+              coverageRequest.id,
+            candidateId:
+              candidate.id,
+          },
+        })),
+      );
+
+      return updatedCandidate;
     },
     {
       isolationLevel: "Serializable",
