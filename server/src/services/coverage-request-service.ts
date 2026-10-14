@@ -2018,6 +2018,11 @@ export async function finalApproveCoverageRequest(
               id: true,
               status: true,
               originalAssigneeMembershipId: true,
+              originalAssignee: {
+                select: {
+                  userId: true,
+                },
+              },
               requestedStartAt: true,
               requestedEndAt: true,
 
@@ -2084,6 +2089,7 @@ export async function finalApproveCoverageRequest(
 
               membership: {
                 select: {
+                  userId: true,
                   storeId: true,
                   role: true,
                   status: true,
@@ -2254,41 +2260,127 @@ export async function finalApproveCoverageRequest(
           },
         });
 
-        return transaction.coverageRequest.findUniqueOrThrow({
-          where: {
-            id: coverageRequest.id,
-          },
-          select: {
-            id: true,
-            status: true,
-            approvedAt: true,
-            approvedByMembershipId: true,
-            selectedCandidateId: true,
+        const notSelectedCandidates =
+          await transaction.coverageCandidate.findMany({
+            where: {
+              coverageRequestId:
+                coverageRequest.id,
+              id: {
+                not: candidate.id,
+              },
+              status: "NOT_SELECTED",
+            },
+            select: {
+              id: true,
 
-            shift: {
-              select: {
-                id: true,
-                assigneeMembershipId: true,
-                startAt: true,
-                endAt: true,
-                status: true,
+              membership: {
+                select: {
+                  userId: true,
+                },
               },
             },
+          });
 
-            candidates: {
-              orderBy: {
-                createdAt: "asc",
+        const approvedRequest =
+          await transaction.coverageRequest.findUniqueOrThrow({
+            where: {
+              id: coverageRequest.id,
+            },
+            select: {
+              id: true,
+              status: true,
+              approvedAt: true,
+              approvedByMembershipId: true,
+              selectedCandidateId: true,
+
+              shift: {
+                select: {
+                  id: true,
+                  assigneeMembershipId: true,
+                  startAt: true,
+                  endAt: true,
+                  status: true,
+                },
               },
-              select: {
-                id: true,
-                membershipId: true,
-                type: true,
-                status: true,
-                respondedAt: true,
+
+              candidates: {
+                orderBy: {
+                  createdAt: "asc",
+                },
+                select: {
+                  id: true,
+                  membershipId: true,
+                  type: true,
+                  status: true,
+                  respondedAt: true,
+                },
               },
             },
-          },
-        });
+          });
+
+        await createNotifications(
+          transaction,
+          [
+            {
+              recipientUserId:
+                coverageRequest
+                  .originalAssignee.userId,
+              storeId,
+              type:
+                "COVERAGE_REPLACEMENT_APPROVED",
+              title:
+                "Coverage replacement approved",
+              message:
+                "A replacement has been approved for your shift.",
+              referenceData: {
+                coverageRequestId:
+                  coverageRequest.id,
+                shiftId:
+                  coverageRequest.shift.id,
+              },
+            },
+            {
+              recipientUserId:
+                candidate.membership.userId,
+              storeId,
+              type: "CANDIDATE_SELECTED",
+              title:
+                "You were selected",
+              message:
+                "You were selected to cover the shift.",
+              referenceData: {
+                coverageRequestId:
+                  coverageRequest.id,
+                shiftId:
+                  coverageRequest.shift.id,
+                candidateId:
+                  candidate.id,
+              },
+            },
+            ...notSelectedCandidates.map(
+              (otherCandidate) => ({
+                recipientUserId:
+                  otherCandidate.membership
+                    .userId,
+                storeId,
+                type:
+                  "CANDIDATE_NOT_SELECTED" as const,
+                title:
+                  "Another candidate was selected",
+                message:
+                  "Another candidate was selected for the coverage request.",
+                referenceData: {
+                  coverageRequestId:
+                    coverageRequest.id,
+                  candidateId:
+                    otherCandidate.id,
+                },
+              }),
+            ),
+          ],
+        );
+
+        return approvedRequest;
       },
       {
         isolationLevel: "Serializable",
