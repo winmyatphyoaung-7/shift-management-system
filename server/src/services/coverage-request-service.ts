@@ -71,12 +71,55 @@ async function expireStaleCoverageRequests(
               },
               select: {
                 id: true,
+                shiftId: true,
+
+                originalAssignee: {
+                  select: {
+                    userId: true,
+                  },
+                },
+
+                requester: {
+                  select: {
+                    userId: true,
+                  },
+                },
+
+                candidates: {
+                  where: {
+                    status: {
+                      in: [
+                        "PENDING",
+                        "AVAILABLE",
+                      ],
+                    },
+                  },
+                  select: {
+                    membership: {
+                      select: {
+                        userId: true,
+                      },
+                    },
+                  },
+                },
               },
             });
 
           if (staleRequests.length === 0) {
             return;
           }
+
+          const managers =
+            await transaction.storeMember.findMany({
+              where: {
+                storeId,
+                role: "MANAGER",
+                status: "ACTIVE",
+              },
+              select: {
+                userId: true,
+              },
+            });
 
           const coverageRequestIds =
             staleRequests.map(
@@ -102,6 +145,39 @@ async function expireStaleCoverageRequests(
               status: "EXPIRED",
             },
           });
+
+          for (const request of staleRequests) {
+            const recipientUserIds =
+              new Set<string>([
+                request.originalAssignee.userId,
+                request.requester.userId,
+                ...managers.map(
+                  (manager) => manager.userId,
+                ),
+                ...request.candidates.map(
+                  (candidate) =>
+                    candidate.membership.userId,
+                ),
+              ]);
+
+            await createNotifications(
+              transaction,
+              [...recipientUserIds].map(
+                (recipientUserId) => ({
+                  recipientUserId,
+                  storeId,
+                  type: "COVERAGE_REQUEST_EXPIRED",
+                  title: "Coverage request expired",
+                  message:
+                    "A coverage request expired before a replacement was approved.",
+                  referenceData: {
+                    coverageRequestId: request.id,
+                    shiftId: request.shiftId,
+                  },
+                }),
+              ),
+            );
+          }
 
           await transaction.coverageCandidate.updateMany({
             where: {
