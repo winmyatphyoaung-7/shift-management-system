@@ -936,6 +936,12 @@ export async function createManagerCoverageRequest(
               endAt: true,
               status: true,
 
+              assignee: {
+                select: {
+                  userId: true,
+                },
+              },
+
               scheduleDay: {
                 select: {
                   status: true,
@@ -1037,9 +1043,8 @@ export async function createManagerCoverageRequest(
           );
         }
 
-        return transaction
-          .coverageRequest
-          .create({
+        const coverageRequest =
+          await transaction.coverageRequest.create({
             data: {
               storeId,
               shiftId: shift.id,
@@ -1079,6 +1084,30 @@ export async function createManagerCoverageRequest(
               updatedAt: true,
             },
           });
+
+        await createNotifications(
+          transaction,
+          [
+            {
+              recipientUserId:
+                shift.assignee.userId,
+              storeId,
+              type: "COVERAGE_REQUEST_OPENED",
+              title: "Coverage request opened",
+              message:
+                "A manager opened a replacement request for your shift.",
+              referenceData: {
+                coverageRequestId:
+                  coverageRequest.id,
+                shiftId: shift.id,
+                responseDeadline:
+                  responseDeadline.toISOString(),
+              },
+            },
+          ],
+        );
+
+        return coverageRequest;
       },
       {
         isolationLevel: "Serializable",
