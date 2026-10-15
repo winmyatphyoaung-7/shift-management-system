@@ -9,6 +9,7 @@ import {
   isThirtyMinuteIncrement,
 } from "../utils/schedule-time.js";
 import { ensureScheduleDayWithCoverageRequirements } from "./schedule-day-service.js";
+import { createNotifications } from "./notification-service.js";
 import { prisma } from "../lib/prisma.js";
 
 type ShiftTimingInput = Pick<
@@ -398,6 +399,12 @@ export async function updateShift(
             assigneeMembershipId: true,
             shiftPresetId: true,
 
+            assignee: {
+              select: {
+                userId: true,
+              },
+            },
+
             coverageRequests: {
               where: {
                 status: {
@@ -526,6 +533,7 @@ export async function updateShift(
           },
           select: {
             status: true,
+            userId: true,
           },
         });
 
@@ -634,6 +642,20 @@ export async function updateShift(
           },
         });
 
+      const publishedShift =
+        existingShift.scheduleDay.status ===
+        "PUBLISHED";
+
+      const timeChanged =
+        existingShift.startAt.getTime() !==
+        timing.startAt.getTime() ||
+        existingShift.endAt.getTime() !==
+        timing.endAt.getTime();
+
+      const assigneeChanged =
+        existingShift.assigneeMembershipId !==
+        finalAssigneeMembershipId;
+
       const updatedShift =
         await transaction.shift.update({
           where: {
@@ -669,6 +691,91 @@ export async function updateShift(
             updatedAt: true,
           },
         });
+
+      if (
+        publishedShift &&
+        timeChanged &&
+        finalAssigneeMembershipId !==
+        managerMembershipId
+      ) {
+        await createNotifications(
+          transaction,
+          [
+            {
+              recipientUserId: assignee.userId,
+              storeId,
+              type:
+                "PUBLISHED_SHIFT_TIME_CHANGED",
+              title: "Shift time changed",
+              message:
+                "The time of one of your published shifts was changed.",
+              referenceData: {
+                shiftId: existingShift.id,
+                scheduleDate,
+                previousStartAt:
+                  existingShift.startAt.toISOString(),
+                previousEndAt:
+                  existingShift.endAt.toISOString(),
+                startAt:
+                  updatedShift.startAt.toISOString(),
+                endAt:
+                  updatedShift.endAt.toISOString(),
+              },
+            },
+          ],
+        );
+      }
+
+      if (publishedShift && assigneeChanged) {
+        const recipientUserIds =
+          new Set<string>();
+
+        if (
+          existingShift.assigneeMembershipId !==
+          managerMembershipId
+        ) {
+          recipientUserIds.add(
+            existingShift.assignee.userId,
+          );
+        }
+
+        if (
+          finalAssigneeMembershipId !==
+          managerMembershipId
+        ) {
+          recipientUserIds.add(
+            assignee.userId,
+          );
+        }
+
+        await createNotifications(
+          transaction,
+          [...recipientUserIds].map(
+            (recipientUserId) => ({
+              recipientUserId,
+              storeId,
+              type:
+                "PUBLISHED_SHIFT_REASSIGNED",
+              title: "Shift reassigned",
+              message:
+                "A published shift was reassigned.",
+              referenceData: {
+                shiftId: existingShift.id,
+                scheduleDate,
+                previousAssigneeMembershipId:
+                  existingShift
+                    .assigneeMembershipId,
+                assigneeMembershipId:
+                  finalAssigneeMembershipId,
+                startAt:
+                  updatedShift.startAt.toISOString(),
+                endAt:
+                  updatedShift.endAt.toISOString(),
+              },
+            }),
+          ),
+        );
+      }
 
       return {
         shift: updatedShift,
@@ -713,6 +820,14 @@ export async function removeShift(
             id: true,
             status: true,
             startAt: true,
+            endAt: true,
+            assigneeMembershipId: true,
+
+            assignee: {
+              select: {
+                userId: true,
+              },
+            },
 
             coverageRequests: {
               where: {
@@ -733,6 +848,7 @@ export async function removeShift(
             scheduleDay: {
               select: {
                 status: true,
+                scheduleDate: true,
               },
             },
           },
@@ -805,6 +921,38 @@ export async function removeShift(
             managerMembershipId,
         },
       });
+
+      if (
+        shift.assigneeMembershipId !==
+        managerMembershipId
+      ) {
+        await createNotifications(
+          transaction,
+          [
+            {
+              recipientUserId:
+                shift.assignee.userId,
+              storeId,
+              type:
+                "PUBLISHED_SHIFT_CANCELLED",
+              title: "Shift cancelled",
+              message:
+                "One of your published shifts was cancelled.",
+              referenceData: {
+                shiftId: shift.id,
+                scheduleDate:
+                  shift.scheduleDay.scheduleDate
+                    .toISOString()
+                    .slice(0, 10),
+                startAt:
+                  shift.startAt.toISOString(),
+                endAt:
+                  shift.endAt.toISOString(),
+              },
+            },
+          ],
+        );
+      }
 
       return {
         action: "CANCELLED",
