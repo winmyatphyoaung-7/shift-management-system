@@ -2489,6 +2489,38 @@ export async function cancelCoverageRequest(
               requesterMembershipId: true,
               status: true,
 
+              requester: {
+                select: {
+                  userId: true,
+                },
+              },
+
+              originalAssignee: {
+                select: {
+                  userId: true,
+                },
+              },
+
+              candidates: {
+                where: {
+                  status: {
+                    in: [
+                      "PENDING",
+                      "AVAILABLE",
+                    ],
+                  },
+                },
+                select: {
+                  id: true,
+
+                  membership: {
+                    select: {
+                      userId: true,
+                    },
+                  },
+                },
+              },
+
               shift: {
                 select: {
                   id: true,
@@ -2581,30 +2613,101 @@ export async function cancelCoverageRequest(
           },
         });
 
-        return transaction.coverageRequest.findUniqueOrThrow({
-          where: {
-            id: coverageRequest.id,
-          },
-          select: {
-            id: true,
-            shiftId: true,
-            requesterMembershipId: true,
-            status: true,
-            updatedAt: true,
+        const cancelledRequest =
+          await transaction.coverageRequest.findUniqueOrThrow({
+            where: {
+              id: coverageRequest.id,
+            },
+            select: {
+              id: true,
+              shiftId: true,
+              requesterMembershipId: true,
+              status: true,
+              updatedAt: true,
 
-            candidates: {
-              orderBy: {
-                createdAt: "asc",
-              },
-              select: {
-                id: true,
-                membershipId: true,
-                type: true,
-                status: true,
+              candidates: {
+                orderBy: {
+                  createdAt: "asc",
+                },
+                select: {
+                  id: true,
+                  membershipId: true,
+                  type: true,
+                  status: true,
+                },
               },
             },
-          },
-        });
+          });
+
+        const managers =
+          await transaction.storeMember.findMany({
+            where: {
+              storeId,
+              role: "MANAGER",
+              status: "ACTIVE",
+            },
+            select: {
+              userId: true,
+            },
+          });
+
+        const recipientUserIds =
+          new Set<string>();
+
+        for (const manager of managers) {
+          if (
+            manager.userId !==
+            coverageRequest.requester.userId
+          ) {
+            recipientUserIds.add(
+              manager.userId,
+            );
+          }
+        }
+
+        if (
+          coverageRequest.originalAssignee
+            .userId !==
+          coverageRequest.requester.userId
+        ) {
+          recipientUserIds.add(
+            coverageRequest.originalAssignee
+              .userId,
+          );
+        }
+
+        for (
+          const candidate of
+          coverageRequest.candidates
+        ) {
+          recipientUserIds.add(
+            candidate.membership.userId,
+          );
+        }
+
+        await createNotifications(
+          transaction,
+          [...recipientUserIds].map(
+            (recipientUserId) => ({
+              recipientUserId,
+              storeId,
+              type:
+                "COVERAGE_REQUEST_CANCELLED",
+              title:
+                "Coverage request cancelled",
+              message:
+                "A coverage request was cancelled.",
+              referenceData: {
+                coverageRequestId:
+                  coverageRequest.id,
+                shiftId:
+                  coverageRequest.shift.id,
+              },
+            }),
+          ),
+        );
+
+        return cancelledRequest;
       },
       {
         isolationLevel: "Serializable",
