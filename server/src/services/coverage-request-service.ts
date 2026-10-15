@@ -2900,8 +2900,33 @@ export async function extendCoverageRequestDeadline(
               status: true,
               responseDeadline: true,
 
+              originalAssignee: {
+                select: {
+                  userId: true,
+                },
+              },
+
+              candidates: {
+                where: {
+                  status: {
+                    in: [
+                      "PENDING",
+                      "AVAILABLE",
+                    ],
+                  },
+                },
+                select: {
+                  membership: {
+                    select: {
+                      userId: true,
+                    },
+                  },
+                },
+              },
+
               shift: {
                 select: {
+                  id: true,
                   status: true,
                   startAt: true,
                 },
@@ -3001,19 +3026,61 @@ export async function extendCoverageRequestDeadline(
           );
         }
 
-        return transaction.coverageRequest.findUniqueOrThrow({
-          where: {
-            id: coverageRequest.id,
-          },
-          select: {
-            id: true,
-            status: true,
-            responseDeadline: true,
-            requestedStartAt: true,
-            requestedEndAt: true,
-            updatedAt: true,
-          },
-        });
+        const updatedRequest =
+          await transaction.coverageRequest.findUniqueOrThrow({
+            where: {
+              id: coverageRequest.id,
+            },
+            select: {
+              id: true,
+              status: true,
+              responseDeadline: true,
+              requestedStartAt: true,
+              requestedEndAt: true,
+              updatedAt: true,
+            },
+          });
+
+        const recipientUserIds =
+          new Set<string>([
+            coverageRequest.originalAssignee
+              .userId,
+          ]);
+
+        for (
+          const candidate of
+          coverageRequest.candidates
+        ) {
+          recipientUserIds.add(
+            candidate.membership.userId,
+          );
+        }
+
+        await createNotifications(
+          transaction,
+          [...recipientUserIds].map(
+            (recipientUserId) => ({
+              recipientUserId,
+              storeId,
+              type:
+                "COVERAGE_DEADLINE_EXTENDED",
+              title:
+                "Coverage deadline extended",
+              message:
+                "The response deadline for a coverage request was extended.",
+              referenceData: {
+                coverageRequestId:
+                  coverageRequest.id,
+                shiftId:
+                  coverageRequest.shift.id,
+                responseDeadline:
+                  responseDeadline.toISOString(),
+              },
+            }),
+          ),
+        );
+
+        return updatedRequest;
       },
       {
         isolationLevel: "Serializable",
