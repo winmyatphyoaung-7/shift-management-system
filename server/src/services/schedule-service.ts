@@ -2,6 +2,7 @@ import { calculateUnderstaffedIntervals } from "../utils/coverage.js";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
 import { ensureScheduleDayWithCoverageRequirements } from "./schedule-day-service.js";
+import { createNotifications } from "./notification-service.js";
 import type {
   ListScheduleDaysQuery,
   PublishScheduleDaysBody,
@@ -311,6 +312,20 @@ export async function publishScheduleDays(
           },
         });
 
+      const notificationRecipients =
+        await transaction.storeMember.findMany({
+          where: {
+            storeId,
+            status: "ACTIVE",
+            id: {
+              not: managerMembershipId,
+            },
+          },
+          select: {
+            userId: true,
+          },
+        });
+
       const publishedDays =
         scheduleDays.map((scheduleDay) => {
           const coverageWarnings =
@@ -349,6 +364,28 @@ export async function publishScheduleDays(
             coverageWarnings,
           };
         });
+
+      await createNotifications(
+        transaction,
+        notificationRecipients.map(
+          (recipient) => ({
+            recipientUserId:
+              recipient.userId,
+            storeId,
+            type: "SCHEDULE_PUBLISHED",
+            title: "Schedule published",
+            message:
+              input.from === input.to
+                ? `The schedule for ${input.from} was published.`
+                : `The schedules from ${input.from} to ${input.to} were published.`,
+            referenceData: {
+              from: input.from,
+              to: input.to,
+              scheduleDayIds,
+            },
+          }),
+        ),
+      );
 
       return {
         publishedDays,
