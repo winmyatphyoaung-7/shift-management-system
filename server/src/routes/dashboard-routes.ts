@@ -1,6 +1,10 @@
 import { Router } from "express";
 
-import { getStaffDashboardController } from "../controllers/dashboard-controller.js";
+import {
+  getManagerDashboardController,
+  getStaffDashboardController,
+} from "../controllers/dashboard-controller.js";
+import { requireManager } from "../middleware/require-manager.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requirePasswordChanged } from "../middleware/require-password-changed.js";
 
@@ -11,4 +15,12 @@ dashboardRouter.get(
   requireAuth,
   requirePasswordChanged,
   getStaffDashboardController,
+);
+
+dashboardRouter.get(
+  "/manager",
+  requireAuth,
+  requirePasswordChanged,
+  requireManager,
+  getManagerDashboardController,
 );
