@@ -42,7 +42,7 @@ function isTransactionConflictError(
   );
 }
 
-async function expireStaleCoverageRequests(
+export async function expireStaleCoverageRequests(
   storeId: string,
 ): Promise<void> {
   const now = new Date();
