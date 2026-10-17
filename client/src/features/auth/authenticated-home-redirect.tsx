@@ -29,7 +29,7 @@ export function AuthenticatedHomeRedirect() {
       to={
         member.role === 'MANAGER'
           ? '/manager'
-          : '/schedule'
+          : '/dashboard'
       }
       replace
     />

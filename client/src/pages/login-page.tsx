@@ -78,7 +78,7 @@ export function LoginPage() {
       navigate(
         member.role === 'MANAGER'
           ? '/manager'
-          : '/schedule',
+          : '/dashboard',
         {
           replace: true,
         },

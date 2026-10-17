@@ -9,6 +9,8 @@ import { ChangePasswordPage } from './pages/change-password-page.tsx'
 import { ManagerMembersPage } from './pages/manager-members-page.tsx'
 import { SchedulePage } from './pages/schedule-page.tsx'
 import { NotificationsPage } from './pages/notifications-page.tsx'
+import { StaffDashboardPage } from './pages/staff-dashboard-page.tsx'
+import { ManagerDashboardPage } from './pages/manager-dashboard-page.tsx'
 import { RequireAuth } from './features/auth/require-auth.tsx'
 import { RequirePasswordChanged } from './features/auth/require-password-changed.tsx'
 import { RequireManager } from './features/auth/require-manager.tsx'
@@ -16,31 +18,6 @@ import { RequireGuest } from './features/auth/require-guest.tsx'
 import { AuthenticatedHomeRedirect } from './features/auth/authenticated-home-redirect.tsx'
 import { AppLayout } from './layouts/app-layout.tsx'
 
-type PlaceholderPageProps = {
-  title: string
-  description: string
-}
-
-function PlaceholderPage({
-  title,
-  description,
-}: PlaceholderPageProps) {
-  return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-      <p className="text-sm font-semibold tracking-wide text-blue-600">
-        SHIFT MANAGEMENT SYSTEM
-      </p>
-
-      <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
-        {title}
-      </h1>
-
-      <p className="mt-4 leading-7 text-slate-600">
-        {description}
-      </p>
-    </section>
-  )
-}
 
 function App() {
   return (
@@ -83,10 +60,7 @@ function App() {
               <Route
                 path="/manager"
                 element={
-                  <PlaceholderPage
-                    title="Manager Dashboard"
-                    description="マネージャー向け画面を準備中です。"
-                  />
+                  <ManagerDashboardPage />
                 }
               />
 
@@ -95,6 +69,11 @@ function App() {
                 element={<ManagerMembersPage />}
               />
             </Route>
+
+            <Route
+              path="/dashboard"
+              element={<StaffDashboardPage />}
+            />
 
             <Route
               path="/schedule"

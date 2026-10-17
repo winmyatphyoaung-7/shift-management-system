@@ -90,7 +90,7 @@ export function RequireGuest() {
       to={
         member.role === 'MANAGER'
           ? '/manager'
-          : '/schedule'
+          : '/dashboard'
       }
       replace
     />

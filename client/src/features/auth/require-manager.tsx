@@ -21,7 +21,7 @@ export function RequireManager() {
   if (member.role !== 'MANAGER') {
     return (
       <Navigate
-        to="/schedule"
+        to="/dashboard"
         replace
       />
     )
