@@ -10,7 +10,7 @@ import type {
   UpdateShiftBody,
 } from "../schemas/schedule-schema.js";
 import {
-  createDraftShifts,
+  createShifts,
   removeShift,
   updateShift,
 } from "../services/shift-service.js";
@@ -40,7 +40,7 @@ export async function createShiftsController(
     );
   }
 
-  const result = await createDraftShifts(
+  const result = await createShifts(
     req.auth.storeId,
     req.auth.membershipId,
     req.body,

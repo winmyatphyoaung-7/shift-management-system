@@ -82,7 +82,7 @@ export function validateShiftTiming(
   };
 }
 
-export async function createDraftShifts(
+export async function createShifts(
   storeId: string,
   managerMembershipId: string,
   input: CreateShiftsBody,
@@ -154,15 +154,6 @@ export async function createDraftShifts(
           },
         );
 
-      if (
-        scheduleDay.status === "PUBLISHED"
-      ) {
-        throw new AppError(
-          409,
-          "SCHEDULE_DAY_ALREADY_PUBLISHED",
-          "New draft shifts cannot be added to a published schedule day",
-        );
-      }
 
       const assignees =
         await transaction.storeMember.findMany({
@@ -174,6 +165,7 @@ export async function createDraftShifts(
           },
           select: {
             id: true,
+            userId: true,
             status: true,
           },
         });
@@ -344,6 +336,60 @@ export async function createDraftShifts(
           });
 
         shifts.push(shift);
+      }
+
+      if (
+        scheduleDay.status === "PUBLISHED"
+      ) {
+        const notificationInputs =
+          shifts.flatMap((shift) => {
+            if (
+              shift.assigneeMembershipId ===
+              managerMembershipId
+            ) {
+              return [];
+            }
+
+            const assignee =
+              assignees.find(
+                (member) =>
+                  member.id ===
+                  shift.assigneeMembershipId,
+              );
+
+            if (!assignee) {
+              return [];
+            }
+
+            return [
+              {
+                recipientUserId:
+                  assignee.userId,
+                storeId,
+                type:
+                  "PUBLISHED_SHIFT_ASSIGNED" as const,
+                title: "Published shift assigned",
+                message:
+                  "A new shift was added to a published schedule and assigned to you.",
+                referenceData: {
+                  shiftId: shift.id,
+                  scheduleDayId:
+                    scheduleDay.id,
+                  scheduleDate:
+                    input.scheduleDate,
+                  startAt:
+                    shift.startAt.toISOString(),
+                  endAt:
+                    shift.endAt.toISOString(),
+                },
+              },
+            ];
+          });
+
+        await createNotifications(
+          transaction,
+          notificationInputs,
+        );
       }
 
       const adjacentMembershipIds = [

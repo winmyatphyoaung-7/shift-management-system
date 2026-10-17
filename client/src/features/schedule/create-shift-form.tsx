@@ -76,8 +76,6 @@ function getApiErrorMessage(
       '選択したシフト枠が見つかりません。',
     SHIFT_PRESETS_NOT_CONFIGURED:
       '有効なシフト枠が設定されていません。',
-    SCHEDULE_DAY_ALREADY_PUBLISHED:
-      '公開済みの日付にはDraftシフトを追加できません。',
   }
 
   return messages[code] ??
@@ -203,7 +201,7 @@ export function CreateShiftForm({
           </p>
 
           <h2 className="mt-2 text-2xl font-bold text-slate-950">
-            Draftシフトを追加
+            シフトを追加
           </h2>
 
           <p className="mt-2 text-sm text-slate-600">

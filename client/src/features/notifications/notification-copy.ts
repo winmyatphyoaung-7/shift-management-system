@@ -17,6 +17,12 @@ const notificationCopies: Record<
       '新しいシフトが公開されました。予定を確認してください。',
   },
 
+  PUBLISHED_SHIFT_ASSIGNED: {
+  title: '新しいシフトが追加されました',
+  message:
+    '公開済みのシフト表に新しい勤務が追加されました。予定を確認してください。',
+},
+
   PUBLISHED_SHIFT_TIME_CHANGED: {
     title: 'シフト時間が変更されました',
     message:

@@ -87,8 +87,7 @@ export function ScheduleDayCard({
             </div>
 
             {isManager &&
-                scheduleDay?.status !==
-                'PUBLISHED' && (
+                (
                     <button
                         type="button"
                         onClick={onCreateShift}

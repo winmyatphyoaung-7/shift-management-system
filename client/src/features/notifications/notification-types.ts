@@ -3,6 +3,7 @@ import type { ApiSuccessResponse } from '../../types/api.ts'
 
 export type NotificationType =
   | 'SCHEDULE_PUBLISHED'
+  | 'PUBLISHED_SHIFT_ASSIGNED'
   | 'PUBLISHED_SHIFT_TIME_CHANGED'
   | 'PUBLISHED_SHIFT_REASSIGNED'
   | 'PUBLISHED_SHIFT_CANCELLED'
