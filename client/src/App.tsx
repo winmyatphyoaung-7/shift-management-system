@@ -8,6 +8,7 @@ import { LoginPage } from './pages/login-page.tsx'
 import { ChangePasswordPage } from './pages/change-password-page.tsx'
 import { ManagerMembersPage } from './pages/manager-members-page.tsx'
 import { SchedulePage } from './pages/schedule-page.tsx'
+import { NotificationsPage } from './pages/notifications-page.tsx'
 import { RequireAuth } from './features/auth/require-auth.tsx'
 import { RequirePasswordChanged } from './features/auth/require-password-changed.tsx'
 import { RequireManager } from './features/auth/require-manager.tsx'
@@ -98,6 +99,10 @@ function App() {
             <Route
               path="/schedule"
               element={<SchedulePage />}
+            />
+            <Route
+              path="/notifications"
+              element={<NotificationsPage />}
             />
           </Route>
         </Route>
