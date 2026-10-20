@@ -10,6 +10,8 @@ import { RemoveShiftConfirmation } from '../features/schedule/remove-shift-confi
 import { PublishScheduleForm } from '../features/schedule/publish-schedule-form.tsx'
 import { CopyWeekForm } from '../features/schedule/copy-week-form.tsx'
 import { ClearDraftRangeForm } from '../features/schedule/clear-draft-range-form.tsx'
+import { StaffCoverageRequestForm } from '../features/coverage/staff-coverage-request-form.tsx'
+import { useMyCoverageActivity } from '../features/coverage/coverage-hooks.ts'
 import { ScheduleDayCard } from '../features/schedule/schedule-day-card.tsx'
 import { ScheduleWeekHeader } from '../features/schedule/schedule-week-header.tsx'
 import {
@@ -65,6 +67,18 @@ export function SchedulePage() {
         currentTime,
         setCurrentTime,
     ] = useState(INITIAL_CURRENT_TIME)
+
+    const [
+        requestingReplacementShift,
+        setRequestingReplacementShift,
+    ] = useState<ScheduleShift | null>(
+        null,
+    )
+
+    const [
+        createdCoverageRequestId,
+        setCreatedCoverageRequestId,
+    ] = useState<string | null>(null)
 
     useEffect(() => {
         const timerId = window.setInterval(
@@ -170,9 +184,30 @@ export function SchedulePage() {
         refetch,
     } = useScheduleDays(range)
 
+    const {
+        data: coverageActivity,
+    } = useMyCoverageActivity()
+
     if (!member) {
         return null
     }
+
+    const activeCoverageRequestShiftIds =
+        new Set(
+            coverageActivity
+                ?.coverageRequests
+                .filter(
+                    (request) =>
+                        request.status ===
+                        'PENDING_REVIEW' ||
+                        request.status ===
+                        'OPEN',
+                )
+                .map(
+                    (request) =>
+                        request.shiftId,
+                ) ?? [],
+        )
 
     const dates = Array.from(
         {
@@ -234,6 +269,8 @@ export function SchedulePage() {
         setCopiedWeekResult(null)
         setIsClearDraftRangeFormOpen(false)
         setClearedDraftRangeResult(null)
+        setRequestingReplacementShift(null)
+        setCreatedCoverageRequestId(null)
     }
 
     function moveWeek(dayOffset: number) {
@@ -586,6 +623,41 @@ export function SchedulePage() {
                     />
                 )}
 
+            {createdCoverageRequestId && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"
+                >
+                    シフト交代を申請しました。
+                    マネージャーの確認をお待ちください。
+                </div>
+            )}
+
+            {member.role === 'STAFF' &&
+                requestingReplacementShift && (
+                    <StaffCoverageRequestForm
+                        key={
+                            requestingReplacementShift.id
+                        }
+                        shift={
+                            requestingReplacementShift
+                        }
+                        onCancel={() => {
+                            setRequestingReplacementShift(
+                                null,
+                            )
+                        }}
+                        onCreated={(request) => {
+                            setRequestingReplacementShift(
+                                null,
+                            )
+                            setCreatedCoverageRequestId(
+                                request.id,
+                            )
+                        }}
+                    />
+                )}
+
             {isPending ? (
                 <div
                     className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"
@@ -645,6 +717,16 @@ export function SchedulePage() {
                                     member.membershipId
                                 }
                                 currentTime={currentTime}
+                                activeCoverageRequestShiftIds={
+                                    activeCoverageRequestShiftIds
+                                }
+                                onRequestCoverage={(shift) => {
+                                    resetOperationState()
+
+                                    setRequestingReplacementShift(
+                                        shift,
+                                    )
+                                }}
                                 onCreateShift={() => {
                                     resetOperationState()
                                     setCreateShiftDate(date)

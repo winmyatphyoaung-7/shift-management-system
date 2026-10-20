@@ -11,6 +11,8 @@ import { SchedulePage } from './pages/schedule-page.tsx'
 import { NotificationsPage } from './pages/notifications-page.tsx'
 import { StaffDashboardPage } from './pages/staff-dashboard-page.tsx'
 import { ManagerDashboardPage } from './pages/manager-dashboard-page.tsx'
+import { OpenReplacementsPage } from './pages/open-replacements-page.tsx'
+import { MyReplacementsPage } from './pages/my-replacements-page.tsx'
 import { RequireAuth } from './features/auth/require-auth.tsx'
 import { RequirePasswordChanged } from './features/auth/require-password-changed.tsx'
 import { RequireManager } from './features/auth/require-manager.tsx'
@@ -78,6 +80,14 @@ function App() {
             <Route
               path="/schedule"
               element={<SchedulePage />}
+            />
+            <Route
+              path="/replacements"
+              element={<OpenReplacementsPage />}
+            />
+            <Route
+              path="/my-replacements"
+              element={<MyReplacementsPage />}
             />
             <Route
               path="/notifications"

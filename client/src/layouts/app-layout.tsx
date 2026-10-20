@@ -142,6 +142,36 @@ export function AppLayout() {
                 シフト
               </NavLink>
             </nav>
+            {member.role === 'STAFF' && (
+              <NavLink
+                to="/replacements"
+                className={({ isActive }) =>
+                  [
+                    'rounded-lg px-3 py-2 text-sm font-semibold transition',
+                    isActive
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+                  ].join(' ')
+                }
+              >
+                交代募集
+              </NavLink>
+            )}
+            {member.role === 'STAFF' && (
+              <NavLink
+                to="/my-replacements"
+                className={({ isActive }) =>
+                  [
+                    'rounded-lg px-3 py-2 text-sm font-semibold transition',
+                    isActive
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+                  ].join(' ')
+                }
+              >
+                自分の交代
+              </NavLink>
+            )}
           </div>
 
           <div className="flex items-center gap-4">

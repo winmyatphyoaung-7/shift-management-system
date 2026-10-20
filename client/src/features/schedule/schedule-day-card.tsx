@@ -12,11 +12,15 @@ type ScheduleDayCardProps = {
     isManager: boolean
     currentMembershipId: string
     currentTime: number
+    activeCoverageRequestShiftIds: ReadonlySet<string>
     onCreateShift: () => void
     onEditShift: (
         shift: ScheduleShift,
     ) => void
     onRemoveShift: (
+        shift: ScheduleShift,
+    ) => void
+    onRequestCoverage: (
         shift: ScheduleShift,
     ) => void
 }
@@ -34,6 +38,9 @@ const timeFormatter =
         minute: '2-digit',
         hour12: false,
     })
+
+const STAFF_REQUEST_NOTICE_MS =
+    7 * 24 * 60 * 60 * 1000
 
 function formatDayLabel(
     value: string,
@@ -57,9 +64,11 @@ export function ScheduleDayCard({
     isManager,
     currentMembershipId,
     currentTime,
+    activeCoverageRequestShiftIds,
     onCreateShift,
     onEditShift,
     onRemoveShift,
+    onRequestCoverage,
 }: ScheduleDayCardProps) {
     return (
         <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -139,6 +148,34 @@ export function ScheduleDayCard({
                                             shift.startAt,
                                         ).getTime() > currentTime
 
+                                    const isRequestableOwnShift =
+                                        !isManager &&
+                                        isOwnShift &&
+                                        scheduleDay.status ===
+                                        'PUBLISHED' &&
+                                        shift.status ===
+                                        'ACTIVE' &&
+                                        new Date(
+                                            shift.startAt,
+                                        ).getTime() > currentTime
+
+                                    const hasActiveCoverageRequest =
+                                        activeCoverageRequestShiftIds.has(
+                                            shift.id,
+                                        )
+
+                                    const hasEnoughNotice =
+                                        new Date(
+                                            shift.startAt,
+                                        ).getTime() >=
+                                        currentTime +
+                                        STAFF_REQUEST_NOTICE_MS
+
+                                    const canRequestCoverage =
+                                        isRequestableOwnShift &&
+                                        !hasActiveCoverageRequest &&
+                                        hasEnoughNotice
+
                                     return (
                                         <div
                                             key={shift.id}
@@ -196,6 +233,36 @@ export function ScheduleDayCard({
                                                 'CANCELLED' && (
                                                     <p className="mt-2 text-xs font-semibold text-red-600">
                                                         キャンセル済み
+                                                    </p>
+                                                )}
+
+                                            {isRequestableOwnShift &&
+                                                hasActiveCoverageRequest && (
+                                                    <p className="mt-3 rounded-lg bg-violet-100 px-3 py-2 text-center text-xs font-semibold text-violet-700">
+                                                        交代依頼中
+                                                    </p>
+                                                )}
+
+                                            {canRequestCoverage && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        onRequestCoverage(
+                                                            shift,
+                                                        )
+                                                    }}
+                                                    className="mt-3 w-full rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
+                                                >
+                                                    交代を依頼
+                                                </button>
+                                            )}
+
+                                            {isRequestableOwnShift &&
+                                                !hasActiveCoverageRequest &&
+                                                !hasEnoughNotice && (
+                                                    <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700">
+                                                        申請期限を過ぎています。
+                                                        マネージャーへ直接連絡してください。
                                                     </p>
                                                 )}
 
