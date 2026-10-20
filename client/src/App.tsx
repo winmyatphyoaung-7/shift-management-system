@@ -13,6 +13,7 @@ import { StaffDashboardPage } from './pages/staff-dashboard-page.tsx'
 import { ManagerDashboardPage } from './pages/manager-dashboard-page.tsx'
 import { OpenReplacementsPage } from './pages/open-replacements-page.tsx'
 import { MyReplacementsPage } from './pages/my-replacements-page.tsx'
+import { ManagerReplacementsPage } from './pages/manager-replacements-page.tsx'
 import { RequireAuth } from './features/auth/require-auth.tsx'
 import { RequirePasswordChanged } from './features/auth/require-password-changed.tsx'
 import { RequireManager } from './features/auth/require-manager.tsx'
@@ -70,7 +71,14 @@ function App() {
                 path="/manager/members"
                 element={<ManagerMembersPage />}
               />
+              <Route
+                path="/manager/replacements"
+                element={
+                  <ManagerReplacementsPage />
+                }
+              />
             </Route>
+
 
             <Route
               path="/dashboard"

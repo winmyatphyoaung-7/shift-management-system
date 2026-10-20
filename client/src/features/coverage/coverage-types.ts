@@ -204,3 +204,123 @@ export type CancelCoverageRequestResponse =
         coverageRequest:
         CancelledCoverageRequest
     }>
+
+export type ManagerCoverageMember = {
+    id: string
+    loginId: string
+    role: 'MANAGER' | 'STAFF'
+    status: 'ACTIVE' | 'INACTIVE'
+    colorKey: string
+    user: {
+        name: string
+    }
+}
+
+export type ManagerCoverageCandidate = {
+    id: string
+    type: CoverageCandidateType
+    status: CoverageCandidateStatus
+    respondedAt: string | null
+    createdAt: string
+    updatedAt: string
+    membership: ManagerCoverageMember
+}
+
+export type ManagerCoverageRequest = {
+    id: string
+    shiftId: string
+    source: CoverageRequestSource
+    reasonCategory: CoverageReasonCategory
+    reasonDetails: string | null
+    requestedStartAt: string
+    requestedEndAt: string
+    status: CoverageRequestStatus
+    responseDeadline: string | null
+    rejectionNote: string | null
+    approvedAt: string | null
+    selectedCandidateId: string | null
+    createdAt: string
+    updatedAt: string
+    shift: {
+        id: string
+        status: 'ACTIVE' | 'CANCELLED'
+        startAt: string
+        endAt: string
+        note: string | null
+        scheduleDay: CoverageScheduleDay
+    }
+    originalAssignee: ManagerCoverageMember
+    requester: ManagerCoverageMember
+    candidates: ManagerCoverageCandidate[]
+    _count: {
+        candidates: number
+    }
+}
+
+export type ManagerCoverageRequestListResponse =
+    ApiSuccessResponse<{
+        coverageRequests:
+        ManagerCoverageRequest[]
+    }>
+
+export type ReviewedCoverageRequest = {
+    id: string
+    shiftId: string
+    source: CoverageRequestSource
+    reasonCategory: CoverageReasonCategory
+    reasonDetails: string | null
+    requestedStartAt: string
+    requestedEndAt: string
+    status: 'OPEN' | 'REJECTED'
+    responseDeadline: string | null
+    rejectionNote: string | null
+    createdAt: string
+    updatedAt: string
+}
+
+export type ReviewCoverageRequestResponse =
+    ApiSuccessResponse<{
+        coverageRequest:
+        ReviewedCoverageRequest
+    }>
+
+export type ApproveCoverageRequestInput = {
+    coverageRequestId: string
+    responseDeadline: string
+}
+
+export type RejectCoverageRequestInput = {
+    coverageRequestId: string
+    rejectionNote?: string
+}
+
+export type CreateManagerCoverageRequestInput = {
+    shiftId: string
+    reasonCategory:
+    CoverageReasonCategory
+    reasonDetails?: string
+    responseDeadline: string
+}
+
+export type CreatedManagerCoverageRequest = {
+    id: string
+    shiftId: string
+    originalAssigneeMembershipId: string
+    requesterMembershipId: string
+    source: 'MANAGER'
+    reasonCategory:
+    CoverageReasonCategory
+    reasonDetails: string | null
+    requestedStartAt: string
+    requestedEndAt: string
+    status: 'OPEN'
+    responseDeadline: string
+    createdAt: string
+    updatedAt: string
+}
+
+export type CreateManagerCoverageRequestResponse =
+    ApiSuccessResponse<{
+        coverageRequest:
+        CreatedManagerCoverageRequest
+    }>

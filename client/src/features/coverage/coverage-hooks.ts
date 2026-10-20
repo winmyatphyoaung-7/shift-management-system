@@ -13,7 +13,14 @@ import {
     withdrawCoverageResponse,
     createStaffCoverageRequest,
     cancelCoverageRequest,
+    getManagerCoverageRequests,
+    approveAndOpenCoverageRequest,
+    rejectCoverageRequest,
+    createManagerCoverageRequest,
 } from './coverage-api.ts'
+import type {
+    CoverageRequestStatus,
+} from './coverage-types.ts'
 import {
     dashboardQueryKeys,
 } from '../dashboard/dashboard-hooks.ts'
@@ -30,6 +37,15 @@ export const coverageQueryKeys = {
         'coverage-requests',
         'mine',
     ] as const,
+
+    manager: (
+        status?: CoverageRequestStatus,
+    ) =>
+        [
+            'coverage-requests',
+            'manager',
+            status ?? 'ALL',
+        ] as const,
 }
 
 export function usePublicCoverageRequests() {
@@ -43,10 +59,30 @@ export function usePublicCoverageRequests() {
     })
 }
 
-export function useMyCoverageActivity() {
+export function useMyCoverageActivity(
+    enabled = true,
+) {
     return useQuery({
         queryKey: coverageQueryKeys.mine,
         queryFn: getMyCoverageActivity,
+        enabled,
+        staleTime: 30 * 1000,
+        refetchInterval: 60 * 1000,
+        refetchIntervalInBackground: false,
+        retry: false,
+    })
+}
+
+export function useManagerCoverageRequests(
+    status?: CoverageRequestStatus,
+    enabled = true,
+) {
+    return useQuery({
+        queryKey:
+            coverageQueryKeys.manager(status),
+        queryFn: () =>
+            getManagerCoverageRequests(status),
+        enabled,
         staleTime: 30 * 1000,
         refetchInterval: 60 * 1000,
         refetchIntervalInBackground: false,
@@ -124,7 +160,76 @@ export function useCreateStaffCoverageRequest() {
 }
 
 export function useCancelCoverageRequest() {
-  return useCoverageAction(
-    cancelCoverageRequest,
-  )
+    return useCoverageAction(
+        cancelCoverageRequest,
+    )
+}
+
+export function useApproveAndOpenCoverageRequest() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn:
+            approveAndOpenCoverageRequest,
+
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey:
+                        coverageQueryKeys.all,
+                }),
+                queryClient.invalidateQueries({
+                    queryKey:
+                        dashboardQueryKeys.all,
+                }),
+            ])
+        },
+    })
+}
+
+export function useRejectCoverageRequest() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn:
+            rejectCoverageRequest,
+
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey:
+                        coverageQueryKeys.all,
+                }),
+                queryClient.invalidateQueries({
+                    queryKey:
+                        dashboardQueryKeys.all,
+                }),
+            ])
+        },
+    })
+}
+
+export function useCreateManagerCoverageRequest() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn:
+            createManagerCoverageRequest,
+
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey:
+                        coverageQueryKeys.all,
+                }),
+                queryClient.invalidateQueries({
+                    queryKey:
+                        dashboardQueryKeys.all,
+                }),
+            ])
+        },
+    })
 }

@@ -11,7 +11,11 @@ import { PublishScheduleForm } from '../features/schedule/publish-schedule-form.
 import { CopyWeekForm } from '../features/schedule/copy-week-form.tsx'
 import { ClearDraftRangeForm } from '../features/schedule/clear-draft-range-form.tsx'
 import { StaffCoverageRequestForm } from '../features/coverage/staff-coverage-request-form.tsx'
-import { useMyCoverageActivity } from '../features/coverage/coverage-hooks.ts'
+import { ManagerCoverageRequestForm } from '../features/coverage/manager-coverage-request-form.tsx'
+import {
+    useManagerCoverageRequests,
+    useMyCoverageActivity,
+} from '../features/coverage/coverage-hooks.ts'
 import { ScheduleDayCard } from '../features/schedule/schedule-day-card.tsx'
 import { ScheduleWeekHeader } from '../features/schedule/schedule-week-header.tsx'
 import {
@@ -74,6 +78,18 @@ export function SchedulePage() {
     ] = useState<ScheduleShift | null>(
         null,
     )
+
+    const [
+        requestingManagerReplacementShift,
+        setRequestingManagerReplacementShift,
+    ] = useState<ScheduleShift | null>(
+        null,
+    )
+
+    const [
+        createdManagerCoverageRequestId,
+        setCreatedManagerCoverageRequestId,
+    ] = useState<string | null>(null)
 
     const [
         createdCoverageRequestId,
@@ -186,16 +202,30 @@ export function SchedulePage() {
 
     const {
         data: coverageActivity,
-    } = useMyCoverageActivity()
+    } = useMyCoverageActivity(
+        member?.role === 'STAFF',
+    )
+
+    const {
+        data: managerCoverageRequests = [],
+    } = useManagerCoverageRequests(
+        undefined,
+        member?.role === 'MANAGER',
+    )
 
     if (!member) {
         return null
     }
 
+    const activeCoverageRequests =
+        member.role === 'MANAGER'
+            ? managerCoverageRequests
+            : coverageActivity
+                ?.coverageRequests ?? []
+
     const activeCoverageRequestShiftIds =
         new Set(
-            coverageActivity
-                ?.coverageRequests
+            activeCoverageRequests
                 .filter(
                     (request) =>
                         request.status ===
@@ -206,9 +236,8 @@ export function SchedulePage() {
                 .map(
                     (request) =>
                         request.shiftId,
-                ) ?? [],
+                ),
         )
-
     const dates = Array.from(
         {
             length: 7,
@@ -271,6 +300,8 @@ export function SchedulePage() {
         setClearedDraftRangeResult(null)
         setRequestingReplacementShift(null)
         setCreatedCoverageRequestId(null)
+        setRequestingManagerReplacementShift(null)
+        setCreatedManagerCoverageRequestId(null)
     }
 
     function moveWeek(dayOffset: number) {
@@ -658,6 +689,40 @@ export function SchedulePage() {
                     />
                 )}
 
+            {createdManagerCoverageRequestId && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"
+                >
+                    マネージャーから交代募集を開始しました。
+                </div>
+            )}
+
+            {member.role === 'MANAGER' &&
+                requestingManagerReplacementShift && (
+                    <ManagerCoverageRequestForm
+                        key={
+                            requestingManagerReplacementShift.id
+                        }
+                        shift={
+                            requestingManagerReplacementShift
+                        }
+                        onCancel={() => {
+                            setRequestingManagerReplacementShift(
+                                null,
+                            )
+                        }}
+                        onCreated={(request) => {
+                            setRequestingManagerReplacementShift(
+                                null,
+                            )
+                            setCreatedManagerCoverageRequestId(
+                                request.id,
+                            )
+                        }}
+                    />
+                )}
+
             {isPending ? (
                 <div
                     className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"
@@ -724,6 +789,15 @@ export function SchedulePage() {
                                     resetOperationState()
 
                                     setRequestingReplacementShift(
+                                        shift,
+                                    )
+                                }}
+                                onCreateManagerCoverageRequest={(
+                                    shift,
+                                ) => {
+                                    resetOperationState()
+
+                                    setRequestingManagerReplacementShift(
                                         shift,
                                     )
                                 }}

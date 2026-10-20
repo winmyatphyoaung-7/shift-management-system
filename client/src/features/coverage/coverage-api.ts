@@ -13,6 +13,16 @@ import type {
     CreatedStaffCoverageRequest,
     CancelledCoverageRequest,
     CancelCoverageRequestResponse,
+    CoverageRequestStatus,
+    ManagerCoverageRequest,
+    ManagerCoverageRequestListResponse,
+    ApproveCoverageRequestInput,
+    RejectCoverageRequestInput,
+    ReviewedCoverageRequest,
+    ReviewCoverageRequestResponse,
+    CreateManagerCoverageRequestInput,
+    CreateManagerCoverageRequestResponse,
+    CreatedManagerCoverageRequest,
 } from './coverage-types.ts'
 
 export type MyCoverageActivity = {
@@ -99,12 +109,76 @@ export async function createStaffCoverageRequest(
 }
 
 export async function cancelCoverageRequest(
-  coverageRequestId: string,
+    coverageRequestId: string,
 ): Promise<CancelledCoverageRequest> {
-  const response =
-    await apiClient.post<CancelCoverageRequestResponse>(
-      `/coverage-requests/${coverageRequestId}/cancel`,
-    )
+    const response =
+        await apiClient.post<CancelCoverageRequestResponse>(
+            `/coverage-requests/${coverageRequestId}/cancel`,
+        )
 
-  return response.data.data.coverageRequest
+    return response.data.data.coverageRequest
+}
+
+export async function getManagerCoverageRequests(
+    status?: CoverageRequestStatus,
+): Promise<ManagerCoverageRequest[]> {
+    const response =
+        await apiClient.get<ManagerCoverageRequestListResponse>(
+            '/coverage-requests/manager',
+            {
+                params: status
+                    ? {
+                        status,
+                    }
+                    : undefined,
+            },
+        )
+
+    return response.data.data.coverageRequests
+}
+
+export async function approveAndOpenCoverageRequest({
+    coverageRequestId,
+    responseDeadline,
+}: ApproveCoverageRequestInput): Promise<ReviewedCoverageRequest> {
+    const response =
+        await apiClient.post<ReviewCoverageRequestResponse>(
+            `/coverage-requests/${coverageRequestId}/approve-open`,
+            {
+                responseDeadline,
+            },
+        )
+
+    return response.data.data.coverageRequest
+}
+
+export async function rejectCoverageRequest({
+    coverageRequestId,
+    rejectionNote,
+}: RejectCoverageRequestInput): Promise<ReviewedCoverageRequest> {
+    const response =
+        await apiClient.post<ReviewCoverageRequestResponse>(
+            `/coverage-requests/${coverageRequestId}/reject`,
+            {
+                ...(rejectionNote
+                    ? {
+                        rejectionNote,
+                    }
+                    : {}),
+            },
+        )
+
+    return response.data.data.coverageRequest
+}
+
+export async function createManagerCoverageRequest(
+    input: CreateManagerCoverageRequestInput,
+): Promise<CreatedManagerCoverageRequest> {
+    const response =
+        await apiClient.post<CreateManagerCoverageRequestResponse>(
+            '/coverage-requests/manager',
+            input,
+        )
+
+    return response.data.data.coverageRequest
 }

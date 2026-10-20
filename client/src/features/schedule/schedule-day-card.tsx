@@ -23,6 +23,9 @@ type ScheduleDayCardProps = {
     onRequestCoverage: (
         shift: ScheduleShift,
     ) => void
+    onCreateManagerCoverageRequest: (
+        shift: ScheduleShift,
+    ) => void
 }
 
 const dayFormatter =
@@ -69,6 +72,7 @@ export function ScheduleDayCard({
     onEditShift,
     onRemoveShift,
     onRequestCoverage,
+    onCreateManagerCoverageRequest,
 }: ScheduleDayCardProps) {
     return (
         <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -140,13 +144,23 @@ export function ScheduleDayCard({
                                         shift.assignee.id ===
                                         currentMembershipId
 
-                                    const canManageShift =
-                                        isManager &&
+                                    const hasActiveCoverageRequest =
+                                        activeCoverageRequestShiftIds.has(
+                                            shift.id,
+                                        )
+
+                                    const isFutureActiveShift =
                                         shift.status ===
                                         'ACTIVE' &&
                                         new Date(
                                             shift.startAt,
-                                        ).getTime() > currentTime
+                                        ).getTime() >
+                                        currentTime
+
+                                    const canManageShift =
+                                        isManager &&
+                                        isFutureActiveShift &&
+                                        !hasActiveCoverageRequest
 
                                     const isRequestableOwnShift =
                                         !isManager &&
@@ -159,11 +173,6 @@ export function ScheduleDayCard({
                                             shift.startAt,
                                         ).getTime() > currentTime
 
-                                    const hasActiveCoverageRequest =
-                                        activeCoverageRequestShiftIds.has(
-                                            shift.id,
-                                        )
-
                                     const hasEnoughNotice =
                                         new Date(
                                             shift.startAt,
@@ -175,6 +184,13 @@ export function ScheduleDayCard({
                                         isRequestableOwnShift &&
                                         !hasActiveCoverageRequest &&
                                         hasEnoughNotice
+
+                                    const canCreateManagerCoverageRequest =
+                                        isManager &&
+                                        scheduleDay.status ===
+                                        'PUBLISHED' &&
+                                        isFutureActiveShift &&
+                                        !hasActiveCoverageRequest
 
                                     return (
                                         <div
@@ -241,7 +257,18 @@ export function ScheduleDayCard({
                                                     <p className="mt-3 rounded-lg bg-violet-100 px-3 py-2 text-center text-xs font-semibold text-violet-700">
                                                         交代依頼中
                                                     </p>
-                                                )}
+                                                )
+                                            }
+
+                                            {isManager &&
+                                                scheduleDay.status ===
+                                                'PUBLISHED' &&
+                                                hasActiveCoverageRequest && (
+                                                    <p className="mt-3 rounded-lg bg-violet-100 px-3 py-2 text-center text-xs font-semibold text-violet-700">
+                                                        交代依頼中
+                                                    </p>
+                                                )
+                                            }
 
                                             {canRequestCoverage && (
                                                 <button
@@ -265,6 +292,20 @@ export function ScheduleDayCard({
                                                         マネージャーへ直接連絡してください。
                                                     </p>
                                                 )}
+
+                                            {canCreateManagerCoverageRequest && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        onCreateManagerCoverageRequest(
+                                                            shift,
+                                                        )
+                                                    }}
+                                                    className="mt-3 w-full rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
+                                                >
+                                                    緊急の交代募集
+                                                </button>
+                                            )}
 
                                             {canManageShift && (
                                                 <>
