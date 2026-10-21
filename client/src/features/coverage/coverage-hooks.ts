@@ -17,6 +17,8 @@ import {
     approveAndOpenCoverageRequest,
     rejectCoverageRequest,
     createManagerCoverageRequest,
+    sendDirectOffers,
+    finalApproveCoverageRequest,
 } from './coverage-api.ts'
 import type {
     CoverageRequestStatus,
@@ -24,6 +26,9 @@ import type {
 import {
     dashboardQueryKeys,
 } from '../dashboard/dashboard-hooks.ts'
+import {
+    scheduleQueryKeys,
+} from '../schedule/schedule-hooks.ts'
 
 export const coverageQueryKeys = {
     all: ['coverage-requests'] as const,
@@ -228,6 +233,55 @@ export function useCreateManagerCoverageRequest() {
                 queryClient.invalidateQueries({
                     queryKey:
                         dashboardQueryKeys.all,
+                }),
+            ])
+        },
+    })
+}
+
+export function useSendDirectOffers() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn: sendDirectOffers,
+
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey:
+                        coverageQueryKeys.all,
+                }),
+                queryClient.invalidateQueries({
+                    queryKey:
+                        dashboardQueryKeys.all,
+                }),
+            ])
+        },
+    })
+}
+
+export function useFinalApproveCoverageRequest() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn:
+            finalApproveCoverageRequest,
+
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey:
+                        coverageQueryKeys.all,
+                }),
+                queryClient.invalidateQueries({
+                    queryKey:
+                        dashboardQueryKeys.all,
+                }),
+                queryClient.invalidateQueries({
+                    queryKey:
+                        scheduleQueryKeys.all,
                 }),
             ])
         },

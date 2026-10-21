@@ -324,3 +324,47 @@ export type CreateManagerCoverageRequestResponse =
         coverageRequest:
         CreatedManagerCoverageRequest
     }>
+
+export type SendDirectOffersInput = {
+    coverageRequestId: string
+    membershipIds: string[]
+}
+
+export type SendDirectOffersResponse =
+    ApiSuccessResponse<{
+        candidates:
+        CoverageCandidate[]
+    }>
+
+export type FinalApproveCoverageRequestInput = {
+    coverageRequestId: string
+    selectedCandidateId: string
+}
+
+export type FinalApprovedCoverageRequest = {
+    id: string
+    status: 'APPROVED'
+    approvedAt: string
+    approvedByMembershipId: string
+    selectedCandidateId: string
+    shift: {
+        id: string
+        assigneeMembershipId: string
+        startAt: string
+        endAt: string
+        status: 'ACTIVE'
+    }
+    candidates: Array<{
+        id: string
+        membershipId: string
+        type: CoverageCandidateType
+        status: CoverageCandidateStatus
+        respondedAt: string | null
+    }>
+}
+
+export type FinalApproveCoverageRequestResponse =
+    ApiSuccessResponse<{
+        coverageRequest:
+        FinalApprovedCoverageRequest
+    }>

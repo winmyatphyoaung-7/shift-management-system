@@ -23,6 +23,11 @@ import type {
     CreateManagerCoverageRequestInput,
     CreateManagerCoverageRequestResponse,
     CreatedManagerCoverageRequest,
+    SendDirectOffersInput,
+    SendDirectOffersResponse,
+    FinalApproveCoverageRequestInput,
+    FinalApproveCoverageRequestResponse,
+    FinalApprovedCoverageRequest,
 } from './coverage-types.ts'
 
 export type MyCoverageActivity = {
@@ -178,6 +183,36 @@ export async function createManagerCoverageRequest(
         await apiClient.post<CreateManagerCoverageRequestResponse>(
             '/coverage-requests/manager',
             input,
+        )
+
+    return response.data.data.coverageRequest
+}
+
+export async function sendDirectOffers({
+    coverageRequestId,
+    membershipIds,
+}: SendDirectOffersInput): Promise<CoverageCandidate[]> {
+    const response =
+        await apiClient.post<SendDirectOffersResponse>(
+            `/coverage-requests/${coverageRequestId}/direct-offers`,
+            {
+                membershipIds,
+            },
+        )
+
+    return response.data.data.candidates
+}
+
+export async function finalApproveCoverageRequest({
+    coverageRequestId,
+    selectedCandidateId,
+}: FinalApproveCoverageRequestInput): Promise<FinalApprovedCoverageRequest> {
+    const response =
+        await apiClient.post<FinalApproveCoverageRequestResponse>(
+            `/coverage-requests/${coverageRequestId}/final-approve`,
+            {
+                selectedCandidateId,
+            },
         )
 
     return response.data.data.coverageRequest

@@ -2,10 +2,17 @@ import { useState } from 'react'
 
 import { useManagerCoverageRequests } from '../features/coverage/coverage-hooks.ts'
 import { ManagerCoverageReviewForm } from '../features/coverage/manager-coverage-review-form.tsx'
+import { DirectOfferForm } from '../features/coverage/direct-offer-form.tsx'
+import {
+    FinalApproveCoverageConfirmation,
+} from '../features/coverage/final-approve-coverage-confirmation.tsx'
 import type {
+    CoverageCandidateStatus,
+    CoverageCandidateType,
     CoverageReasonCategory,
     CoverageRequestStatus,
     ManagerCoverageRequest,
+    ManagerCoverageCandidate,
 } from '../features/coverage/coverage-types.ts'
 import { toApiError } from '../lib/api-error.ts'
 
@@ -16,6 +23,11 @@ type ReviewSelection = {
     request: ManagerCoverageRequest
     action: 'APPROVE' | 'REJECT'
 }
+type FinalApprovalSelection = {
+    request: ManagerCoverageRequest
+    candidate: ManagerCoverageCandidate
+}
+
 
 const STATUS_OPTIONS: Array<{
     value: StatusFilter
@@ -128,15 +140,52 @@ function getReasonLabel(
     return labels[reason]
 }
 
+function getCandidateTypeLabel(
+    type: CoverageCandidateType,
+): string {
+    const labels: Record<
+        CoverageCandidateType,
+        string
+    > = {
+        VOLUNTEER: '立候補',
+        DIRECT_OFFER: '直接依頼',
+    }
+
+    return labels[type]
+}
+
+function getCandidateStatusLabel(
+    status: CoverageCandidateStatus,
+): string {
+    const labels: Record<
+        CoverageCandidateStatus,
+        string
+    > = {
+        PENDING: '回答待ち',
+        AVAILABLE: '対応可能',
+        DECLINED: '辞退',
+        WITHDRAWN: '取り下げ',
+        SELECTED: '選択済み',
+        NOT_SELECTED: '未選択',
+        EXPIRED: '期限切れ',
+    }
+
+    return labels[status]
+}
+
 export function ManagerReplacementsPage() {
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
 
     const [reviewSelection, setReviewSelection,] = useState<ReviewSelection | null>(null,)
 
-    const requestsQuery =
-        useManagerCoverageRequests(
-            statusFilter || undefined,
-        )
+    const [directOfferRequest, setDirectOfferRequest] = useState<ManagerCoverageRequest | null>(null)
+
+    const [sentDirectOfferCount, setSentDirectOfferCount] = useState<number | null>(null)
+    const [finalApprovalSelection, setFinalApprovalSelection] = useState<FinalApprovalSelection | null>(null)
+
+    const [approvedCandidateName, setApprovedCandidateName,] = useState<string | null>(null)
+
+    const requestsQuery = useManagerCoverageRequests(statusFilter || undefined,)
 
     const requests =
         requestsQuery.data ?? []
@@ -157,6 +206,59 @@ export function ManagerReplacementsPage() {
                     }}
                 />
             )}
+
+            {directOfferRequest && (
+                <DirectOfferForm
+                    key={directOfferRequest.id}
+                    request={
+                        directOfferRequest
+                    }
+                    onClose={() => {
+                        setDirectOfferRequest(null)
+                    }}
+                    onSent={(sentCount) => {
+                        setDirectOfferRequest(null)
+                        setSentDirectOfferCount(
+                            sentCount,
+                        )
+                    }}
+                />
+            )}
+
+            {finalApprovalSelection && (
+                <FinalApproveCoverageConfirmation
+                    key={
+                        finalApprovalSelection
+                            .candidate.id
+                    }
+                    request={
+                        finalApprovalSelection
+                            .request
+                    }
+                    candidate={
+                        finalApprovalSelection
+                            .candidate
+                    }
+                    onCancel={() => {
+                        setFinalApprovalSelection(
+                            null,
+                        )
+                    }}
+                    onApproved={() => {
+                        setApprovedCandidateName(
+                            finalApprovalSelection
+                                .candidate
+                                .membership
+                                .user.name,
+                        )
+
+                        setFinalApprovalSelection(
+                            null,
+                        )
+                    }}
+                />
+            )}
+
             <div className="flex flex-wrap items-end justify-between gap-5">
                 <div>
                     <p className="text-sm font-semibold tracking-wide text-blue-600">
@@ -203,6 +305,27 @@ export function ManagerReplacementsPage() {
                     </select>
                 </label>
             </div>
+
+            {sentDirectOfferCount !==
+                null && (
+                    <div
+                        role="status"
+                        className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"
+                    >
+                        {sentDirectOfferCount}
+                        人のスタッフへ直接依頼を送信しました。
+                    </div>
+                )}
+
+            {approvedCandidateName && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"
+                >
+                    {approvedCandidateName}
+                    さんを交代担当者として最終承認しました。
+                </div>
+            )}
 
             {requestsQuery.isPending ? (
                 <div
@@ -400,26 +523,83 @@ export function ManagerReplacementsPage() {
                                             候補者
                                         </p>
 
-                                        <div className="mt-3 flex flex-wrap gap-2">
+                                        <div className="mt-3 space-y-3">
                                             {request.candidates.map(
                                                 (candidate) => (
-                                                    <span
-                                                        key={candidate.id}
-                                                        className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                                                    <div
+                                                        key={
+                                                            candidate.id
+                                                        }
+                                                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3"
                                                     >
-                                                        {
-                                                            candidate
-                                                                .membership
-                                                                .user.name
-                                                        }
-                                                        {' · '}
-                                                        {
-                                                            candidate.status
-                                                        }
-                                                    </span>
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-900">
+                                                                {
+                                                                    candidate
+                                                                        .membership
+                                                                        .user
+                                                                        .name
+                                                                }
+                                                            </p>
+
+                                                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                                                                {getCandidateTypeLabel(
+                                                                    candidate.type,
+                                                                )}
+                                                                {' · '}
+                                                                {getCandidateStatusLabel(
+                                                                    candidate.status,
+                                                                )}
+                                                            </p>
+                                                        </div>
+
+                                                        {request.status ===
+                                                            'OPEN' &&
+                                                            candidate.status ===
+                                                            'AVAILABLE' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setApprovedCandidateName(
+                                                                            null,
+                                                                        )
+
+                                                                        setFinalApprovalSelection(
+                                                                            {
+                                                                                request,
+                                                                                candidate,
+                                                                            },
+                                                                        )
+                                                                    }}
+                                                                    className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                                                                >
+                                                                    この候補者を承認
+                                                                </button>
+                                                            )}
+                                                    </div>
                                                 ),
                                             )}
                                         </div>
+                                    </div>
+                                )}
+
+                            {request.status ===
+                                'OPEN' && (
+                                    <div className="mt-6 border-t border-slate-200 pt-5">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSentDirectOfferCount(
+                                                    null,
+                                                )
+                                                setDirectOfferRequest(
+                                                    request,
+                                                )
+                                            }}
+                                            className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+                                        >
+                                            スタッフへ直接依頼
+                                        </button>
                                     </div>
                                 )}
 
