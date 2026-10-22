@@ -75,6 +75,7 @@ export function ManagerDashboardPage() {
         '承認または却下が必要',
       tone:
         'border-red-200 bg-red-50 text-red-700',
+      to: '/manager/replacements',
     },
     {
       label: '期限が近い交代依頼',
@@ -85,6 +86,7 @@ export function ManagerDashboardPage() {
         '24時間以内または期限超過',
       tone:
         'border-amber-200 bg-amber-50 text-amber-700',
+      to: '/manager/replacements',
     },
     {
       label: '最終承認待ち',
@@ -95,6 +97,7 @@ export function ManagerDashboardPage() {
         '承諾済みの直接オファー',
       tone:
         'border-violet-200 bg-violet-50 text-violet-700',
+      to: '/manager/replacements',
     },
     {
       label: '人員不足',
@@ -105,6 +108,7 @@ export function ManagerDashboardPage() {
         '今後7日間の不足時間帯',
       tone:
         'border-orange-200 bg-orange-50 text-orange-700',
+      to: '/schedule',
     },
     {
       label: '未公開の日',
@@ -115,6 +119,7 @@ export function ManagerDashboardPage() {
         '今後の下書き日',
       tone:
         'border-slate-200 bg-slate-50 text-slate-700',
+      to: '/schedule',
     },
     {
       label: '未読通知',
@@ -125,6 +130,7 @@ export function ManagerDashboardPage() {
         '確認していない通知',
       tone:
         'border-blue-200 bg-blue-50 text-blue-700',
+      to: '/notifications',
     },
   ]
 
@@ -146,10 +152,11 @@ export function ManagerDashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {alertCards.map((alert) => (
-          <article
+          <Link
             key={alert.label}
+            to={alert.to}
             className={[
-              'rounded-2xl border p-5 shadow-sm',
+              'block rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200',
               alert.tone,
             ].join(' ')}
           >
@@ -164,7 +171,7 @@ export function ManagerDashboardPage() {
             <p className="mt-2 text-xs opacity-80">
               {alert.description}
             </p>
-          </article>
+          </Link>
         ))}
       </div>
 
@@ -203,7 +210,7 @@ export function ManagerDashboardPage() {
         </div>
 
         {dashboard.today.shifts.length ===
-        0 ? (
+          0 ? (
           <p className="mt-6 rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
             本日の公開済みシフトはありません。
           </p>

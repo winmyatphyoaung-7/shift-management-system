@@ -76,6 +76,7 @@ export function StaffDashboardPage() {
         '確認していない通知',
       tone:
         'border-blue-200 bg-blue-50 text-blue-700',
+      to: '/notifications',
     },
     {
       label: '直接オファー',
@@ -86,6 +87,7 @@ export function StaffDashboardPage() {
         '回答が必要な交代依頼',
       tone:
         'border-amber-200 bg-amber-50 text-amber-700',
+      to: '/my-replacements',
     },
     {
       label: '自分の交代依頼',
@@ -96,6 +98,7 @@ export function StaffDashboardPage() {
         '確認中または募集中',
       tone:
         'border-violet-200 bg-violet-50 text-violet-700',
+      to: '/my-replacements',
     },
     {
       label: '募集中の交代',
@@ -106,6 +109,7 @@ export function StaffDashboardPage() {
         '立候補できるシフト',
       tone:
         'border-emerald-200 bg-emerald-50 text-emerald-700',
+      to: '/replacements',
     },
   ]
 
@@ -127,10 +131,11 @@ export function StaffDashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {alertCards.map((alert) => (
-          <article
+          <Link
             key={alert.label}
+            to={alert.to}
             className={[
-              'rounded-2xl border p-5 shadow-sm',
+              'block rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200',
               alert.tone,
             ].join(' ')}
           >
@@ -145,7 +150,7 @@ export function StaffDashboardPage() {
             <p className="mt-2 text-xs opacity-80">
               {alert.description}
             </p>
-          </article>
+          </Link>
         ))}
       </div>
 
@@ -233,13 +238,13 @@ export function StaffDashboardPage() {
 
       {dashboard.alerts
         .unreadNotificationCount > 0 && (
-        <Link
-          to="/notifications"
-          className="block rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-        >
-          未読通知を確認する →
-        </Link>
-      )}
+          <Link
+            to="/notifications"
+            className="block rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+          >
+            未読通知を確認する →
+          </Link>
+        )}
     </section>
   )
 }
