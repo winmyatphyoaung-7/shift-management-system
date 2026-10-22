@@ -1,8 +1,18 @@
 import { useState } from 'react'
 
-import { useManagerCoverageRequests } from '../features/coverage/coverage-hooks.ts'
+import {
+    useCancelCoverageRequest,
+    useManagerCoverageRequests,
+} from '../features/coverage/coverage-hooks.ts'
+import {
+    CoverageActionConfirmation,
+} from '../features/coverage/coverage-action-confirmation.tsx'
+import {
+    useCurrentMember,
+} from '../features/auth/auth-hooks.ts'
 import { ManagerCoverageReviewForm } from '../features/coverage/manager-coverage-review-form.tsx'
 import { DirectOfferForm } from '../features/coverage/direct-offer-form.tsx'
+import { ExtendCoverageDeadlineForm } from '../features/coverage/extend-coverage-deadline-form.tsx'
 import {
     FinalApproveCoverageConfirmation,
 } from '../features/coverage/final-approve-coverage-confirmation.tsx'
@@ -185,6 +195,34 @@ export function ManagerReplacementsPage() {
 
     const [approvedCandidateName, setApprovedCandidateName,] = useState<string | null>(null)
 
+    const [
+        deadlineExtensionRequest,
+        setDeadlineExtensionRequest,
+    ] = useState<ManagerCoverageRequest | null>(
+        null,
+    )
+
+    const [
+        extendedDeadline,
+        setExtendedDeadline,
+    ] = useState<string | null>(null)
+
+    const [
+        cancellationRequest,
+        setCancellationRequest,
+    ] = useState<ManagerCoverageRequest | null>(
+        null,
+    )
+
+    const [
+        cancelledRequestId,
+        setCancelledRequestId,
+    ] = useState<string | null>(null)
+
+    const currentMemberQuery = useCurrentMember()
+
+    const cancelMutation = useCancelCoverageRequest()
+
     const requestsQuery = useManagerCoverageRequests(statusFilter || undefined,)
 
     const requests =
@@ -259,6 +297,69 @@ export function ManagerReplacementsPage() {
                 />
             )}
 
+            {deadlineExtensionRequest && (
+                <ExtendCoverageDeadlineForm
+                    key={
+                        deadlineExtensionRequest.id
+                    }
+                    request={
+                        deadlineExtensionRequest
+                    }
+                    onClose={() => {
+                        setDeadlineExtensionRequest(
+                            null,
+                        )
+                    }}
+                    onExtended={(
+                        responseDeadline,
+                    ) => {
+                        setDeadlineExtensionRequest(
+                            null,
+                        )
+                        setExtendedDeadline(
+                            responseDeadline,
+                        )
+                    }}
+                />
+            )}
+
+            {cancellationRequest && (
+                <CoverageActionConfirmation
+                    title="交代依頼をキャンセル"
+                    message="この交代依頼をキャンセルします。キャンセル後は募集が終了し、候補者は回答できなくなります。"
+                    confirmLabel="依頼をキャンセル"
+                    isPending={
+                        cancelMutation.isPending
+                    }
+                    onCancel={() => {
+                        if (
+                            !cancelMutation.isPending
+                        ) {
+                            setCancellationRequest(
+                                null,
+                            )
+                        }
+                    }}
+                    onConfirm={() => {
+                        cancelMutation.mutate(
+                            cancellationRequest.id,
+                            {
+                                onSuccess: () => {
+                                    setCancelledRequestId(
+                                        cancellationRequest.id,
+                                    )
+                                },
+                                onSettled: () => {
+                                    setCancellationRequest(
+                                        null,
+                                    )
+                                },
+                            },
+                        )
+                    }}
+                />
+            )}
+
             <div className="flex flex-wrap items-end justify-between gap-5">
                 <div>
                     <p className="text-sm font-semibold tracking-wide text-blue-600">
@@ -324,6 +425,42 @@ export function ManagerReplacementsPage() {
                 >
                     {approvedCandidateName}
                     さんを交代担当者として最終承認しました。
+                </div>
+            )}
+
+            {cancelledRequestId && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"
+                >
+                    交代依頼をキャンセルしました。
+                </div>
+            )}
+
+            {cancelMutation.isError && (
+                <div
+                    role="alert"
+                    className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                    交代依頼をキャンセルできませんでした。
+                    {
+                        toApiError(
+                            cancelMutation.error,
+                        ).message
+                    }
+                </div>
+            )}
+
+            {extendedDeadline && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700"
+                >
+                    回答期限を
+                    {formatDateTime(
+                        extendedDeadline,
+                    )}
+                    まで延長しました。
                 </div>
             )}
 
@@ -585,7 +722,7 @@ export function ManagerReplacementsPage() {
 
                             {request.status ===
                                 'OPEN' && (
-                                    <div className="mt-6 border-t border-slate-200 pt-5">
+                                    <div className="mt-6 flex flex-wrap gap-3 border-t border-slate-200 pt-5">
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -599,6 +736,18 @@ export function ManagerReplacementsPage() {
                                             className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
                                         >
                                             スタッフへ直接依頼
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setExtendedDeadline(null)
+                                                setDeadlineExtensionRequest(
+                                                    request,
+                                                )
+                                            }}
+                                            className="rounded-xl border border-blue-300 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+                                        >
+                                            回答期限を延長
                                         </button>
                                     </div>
                                 )}
@@ -632,6 +781,36 @@ export function ManagerReplacementsPage() {
                                             className="rounded-xl border border-red-300 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
                                         >
                                             却下
+                                        </button>
+                                    </div>
+                                )}
+
+                            {(
+                                request.status ===
+                                'PENDING_REVIEW' ||
+                                request.status === 'OPEN'
+                            ) &&
+                                request.requester.id ===
+                                currentMemberQuery.data
+                                    ?.membershipId && (
+                                    <div className="mt-3">
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                cancelMutation.isPending
+                                            }
+                                            onClick={() => {
+                                                cancelMutation.reset()
+                                                setCancelledRequestId(
+                                                    null,
+                                                )
+                                                setCancellationRequest(
+                                                    request,
+                                                )
+                                            }}
+                                            className="rounded-xl border border-red-300 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-red-300"
+                                        >
+                                            依頼をキャンセル
                                         </button>
                                     </div>
                                 )}

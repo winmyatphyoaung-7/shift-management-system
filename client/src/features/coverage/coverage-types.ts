@@ -368,3 +368,23 @@ export type FinalApproveCoverageRequestResponse =
         coverageRequest:
         FinalApprovedCoverageRequest
     }>
+
+export type ExtendCoverageDeadlineInput = {
+    coverageRequestId: string
+    responseDeadline: string
+}
+
+export type ExtendedCoverageRequest = {
+    id: string
+    status: 'OPEN'
+    responseDeadline: string
+    requestedStartAt: string
+    requestedEndAt: string
+    updatedAt: string
+}
+
+export type ExtendCoverageDeadlineResponse =
+    ApiSuccessResponse<{
+        coverageRequest:
+        ExtendedCoverageRequest
+    }>

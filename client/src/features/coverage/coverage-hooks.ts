@@ -19,6 +19,7 @@ import {
     createManagerCoverageRequest,
     sendDirectOffers,
     finalApproveCoverageRequest,
+    extendCoverageRequestDeadline,
 } from './coverage-api.ts'
 import type {
     CoverageRequestStatus,
@@ -282,6 +283,29 @@ export function useFinalApproveCoverageRequest() {
                 queryClient.invalidateQueries({
                     queryKey:
                         scheduleQueryKeys.all,
+                }),
+            ])
+        },
+    })
+}
+
+export function useExtendCoverageRequestDeadline() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn:
+            extendCoverageRequestDeadline,
+
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey:
+                        coverageQueryKeys.all,
+                }),
+                queryClient.invalidateQueries({
+                    queryKey:
+                        dashboardQueryKeys.all,
                 }),
             ])
         },

@@ -28,6 +28,9 @@ import type {
     FinalApproveCoverageRequestInput,
     FinalApproveCoverageRequestResponse,
     FinalApprovedCoverageRequest,
+    ExtendCoverageDeadlineInput,
+    ExtendCoverageDeadlineResponse,
+    ExtendedCoverageRequest,
 } from './coverage-types.ts'
 
 export type MyCoverageActivity = {
@@ -212,6 +215,21 @@ export async function finalApproveCoverageRequest({
             `/coverage-requests/${coverageRequestId}/final-approve`,
             {
                 selectedCandidateId,
+            },
+        )
+
+    return response.data.data.coverageRequest
+}
+
+export async function extendCoverageRequestDeadline({
+    coverageRequestId,
+    responseDeadline,
+}: ExtendCoverageDeadlineInput): Promise<ExtendedCoverageRequest> {
+    const response =
+        await apiClient.post<ExtendCoverageDeadlineResponse>(
+            `/coverage-requests/${coverageRequestId}/extend-deadline`,
+            {
+                responseDeadline,
             },
         )
 
