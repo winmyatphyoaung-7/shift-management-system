@@ -12,6 +12,7 @@ import {
 import { RequireAuth } from './features/auth/require-auth.tsx'
 import { RequirePasswordChanged } from './features/auth/require-password-changed.tsx'
 import { RequireManager } from './features/auth/require-manager.tsx'
+import { RequireStaff } from './features/auth/require-staff.tsx'
 import { RequireGuest } from './features/auth/require-guest.tsx'
 import { AuthenticatedHomeRedirect } from './features/auth/authenticated-home-redirect.tsx'
 import { AppLayout } from './layouts/app-layout.tsx'
@@ -170,23 +171,28 @@ function App() {
               </Route>
 
 
-              <Route
-                path="/dashboard"
-                element={<StaffDashboardPage />}
-              />
+              <Route element={<RequireStaff />}>
+                <Route
+                  path="/dashboard"
+                  element={<StaffDashboardPage />}
+                />
+
+                <Route
+                  path="/replacements"
+                  element={<OpenReplacementsPage />}
+                />
+
+                <Route
+                  path="/my-replacements"
+                  element={<MyReplacementsPage />}
+                />
+              </Route>
 
               <Route
                 path="/schedule"
                 element={<SchedulePage />}
               />
-              <Route
-                path="/replacements"
-                element={<OpenReplacementsPage />}
-              />
-              <Route
-                path="/my-replacements"
-                element={<MyReplacementsPage />}
-              />
+
               <Route
                 path="/notifications"
                 element={<NotificationsPage />}
