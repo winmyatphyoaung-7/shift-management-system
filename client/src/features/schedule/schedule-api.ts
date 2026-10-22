@@ -19,6 +19,9 @@ import type {
     ClearDraftRangeInput,
     ClearDraftRangeResponse,
     ClearDraftRangeResult,
+    UpdateCoverageRequirementInput,
+    UpdateCoverageRequirementResponse,
+    UpdateCoverageRequirementResult,
 } from './schedule-types.ts'
 
 import type {
@@ -107,6 +110,23 @@ export async function clearDraftRange(
             '/schedule-days/draft-range',
             {
                 data: input,
+            },
+        )
+
+    return response.data.data
+}
+
+export async function updateCoverageRequirement({
+    coverageRequirementId,
+    requiredCount,
+}: UpdateCoverageRequirementInput): Promise<
+    UpdateCoverageRequirementResult
+> {
+    const response =
+        await apiClient.patch<UpdateCoverageRequirementResponse>(
+            `/coverage-requirements/${coverageRequirementId}`,
+            {
+                requiredCount,
             },
         )
 

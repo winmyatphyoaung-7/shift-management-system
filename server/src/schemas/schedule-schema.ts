@@ -200,6 +200,10 @@ export const updateCoverageRequirementBodySchema =
         .min(
           1,
           "Required count must be at least 1",
+        )
+        .max(
+          100,
+          "Required count must not exceed 100",
         ),
     })
     .strict();

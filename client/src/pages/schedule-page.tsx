@@ -16,6 +16,7 @@ import { CopyWeekForm } from '../features/schedule/copy-week-form.tsx'
 import { ClearDraftRangeForm } from '../features/schedule/clear-draft-range-form.tsx'
 import { StaffCoverageRequestForm } from '../features/coverage/staff-coverage-request-form.tsx'
 import { ManagerCoverageRequestForm } from '../features/coverage/manager-coverage-request-form.tsx'
+import { EditCoverageRequirementForm } from '../features/schedule/edit-coverage-requirement-form.tsx'
 import {
     useManagerCoverageRequests,
     useMyCoverageActivity,
@@ -38,6 +39,7 @@ import type {
     PublishScheduleResult,
     CopyWeekCompletedResult,
     ClearDraftRangeCompletedResult,
+    CoverageRequirement,
 } from '../features/schedule/schedule-types.ts'
 import { toApiError } from '../lib/api-error.ts'
 
@@ -69,6 +71,18 @@ const INITIAL_CURRENT_TIME =
 
 export function SchedulePage() {
 
+    const [
+        editingCoverageRequirement,
+        setEditingCoverageRequirement,
+    ] = useState<CoverageRequirement | null>(
+        null,
+    )
+
+    const [
+        updatedCoverageWarningCount,
+        setUpdatedCoverageWarningCount,
+    ] = useState<number | null>(null)
+
     const [searchParams] =
         useSearchParams()
 
@@ -76,19 +90,19 @@ export function SchedulePage() {
         searchParams.get('date')
 
     const [range, setRange] =
-    useState<ScheduleDateRange>(
-        () =>
-            requestedDate &&
-            isValidDateKey(
-                requestedDate,
-            )
-                ? getWeekRange(
-                      parseDateKey(
-                          requestedDate,
-                      ),
-                  )
-                : getWeekRange(),
-    )
+        useState<ScheduleDateRange>(
+            () =>
+                requestedDate &&
+                    isValidDateKey(
+                        requestedDate,
+                    )
+                    ? getWeekRange(
+                        parseDateKey(
+                            requestedDate,
+                        ),
+                    )
+                    : getWeekRange(),
+        )
 
     const [
         currentTime,
@@ -325,6 +339,8 @@ export function SchedulePage() {
         setCreatedCoverageRequestId(null)
         setRequestingManagerReplacementShift(null)
         setCreatedManagerCoverageRequestId(null)
+        setEditingCoverageRequirement(null)
+        setUpdatedCoverageWarningCount(null)
     }
 
     function moveWeek(dayOffset: number) {
@@ -746,6 +762,50 @@ export function SchedulePage() {
                     />
                 )}
 
+            {member.role === 'MANAGER' &&
+                editingCoverageRequirement && (
+                    <EditCoverageRequirementForm
+                        key={
+                            editingCoverageRequirement.id
+                        }
+                        requirement={
+                            editingCoverageRequirement
+                        }
+                        onClose={() => {
+                            setEditingCoverageRequirement(
+                                null,
+                            )
+                        }}
+                        onUpdated={(warningCount) => {
+                            setEditingCoverageRequirement(
+                                null,
+                            )
+                            setUpdatedCoverageWarningCount(
+                                warningCount,
+                            )
+                        }}
+                    />
+                )}
+
+            {updatedCoverageWarningCount !==
+                null && (
+                    <div
+                        role="status"
+                        className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+                    >
+                        <p className="font-semibold">
+                            人員要件を更新しました。
+                        </p>
+
+                        <p className="mt-1">
+                            {updatedCoverageWarningCount ===
+                                0
+                                ? '現在、人員不足はありません。'
+                                : `人員不足：${updatedCoverageWarningCount}枠`}
+                        </p>
+                    </div>
+                )}
+
             {isPending ? (
                 <div
                     className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"
@@ -849,6 +909,16 @@ export function SchedulePage() {
                                             scheduleDay.status,
                                         shift,
                                     })
+                                }}
+
+                                onEditCoverageRequirement={(
+                                    requirement,
+                                ) => {
+                                    resetOperationState()
+
+                                    setEditingCoverageRequirement(
+                                        requirement,
+                                    )
                                 }}
                             />
                         )

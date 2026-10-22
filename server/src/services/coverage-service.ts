@@ -19,6 +19,7 @@ export async function updateCoverageRequirement(
         select: {
           id: true,
           scheduleDayId: true,
+          startAt: true,
         },
       });
 
@@ -27,6 +28,17 @@ export async function updateCoverageRequirement(
         404,
         "COVERAGE_REQUIREMENT_NOT_FOUND",
         "Coverage requirement not found",
+      );
+    }
+
+    if (
+      existingRequirement.startAt.getTime() <=
+      Date.now()
+    ) {
+      throw new AppError(
+        409,
+        "COVERAGE_REQUIREMENT_ALREADY_STARTED",
+        "A coverage requirement cannot be changed after its start time",
       );
     }
 

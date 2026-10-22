@@ -259,3 +259,34 @@ export type ClearDraftRangeResult =
 
 export type ClearDraftRangeResponse =
     ApiSuccessResponse<ClearDraftRangeResult>
+
+export type UpdateCoverageRequirementInput = {
+    coverageRequirementId: string
+    requiredCount: number
+}
+
+export type UpdatedCoverageRequirement = {
+    id: string
+    scheduleDayId: string
+    shiftPresetId: string
+    startAt: string
+    endAt: string
+    requiredCount: number
+    createdAt: string
+    updatedAt: string
+    shiftPreset: {
+        id: string
+        name: string
+    }
+}
+
+export type UpdateCoverageRequirementResult = {
+    coverageRequirement:
+    UpdatedCoverageRequirement
+    warnings: UnderstaffedWarning[]
+}
+
+export type UpdateCoverageRequirementResponse =
+    ApiSuccessResponse<
+        UpdateCoverageRequirementResult
+    >

@@ -2,6 +2,7 @@ import {
     parseDateKey,
 } from './schedule-date.ts'
 import type {
+    CoverageRequirement,
     ScheduleDay,
     ScheduleShift,
 } from './schedule-types.ts'
@@ -25,6 +26,9 @@ type ScheduleDayCardProps = {
     ) => void
     onCreateManagerCoverageRequest: (
         shift: ScheduleShift,
+    ) => void
+    onEditCoverageRequirement: (
+        requirement: CoverageRequirement,
     ) => void
 }
 
@@ -73,6 +77,7 @@ export function ScheduleDayCard({
     onRemoveShift,
     onRequestCoverage,
     onCreateManagerCoverageRequest,
+    onEditCoverageRequirement,
 }: ScheduleDayCardProps) {
     return (
         <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -118,6 +123,73 @@ export function ScheduleDayCard({
                 </p>
             ) : (
                 <>
+                    {isManager &&
+                        scheduleDay.coverageRequirements
+                            .length > 0 && (
+                            <section className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <p className="text-xs font-bold text-slate-700">
+                                    人員要件
+                                </p>
+
+                                <div className="mt-2 space-y-2">
+                                    {scheduleDay
+                                        .coverageRequirements
+                                        .map((requirement) => {
+                                            const canEdit =
+                                                new Date(
+                                                    requirement.startAt,
+                                                ).getTime() >
+                                                currentTime
+
+                                            return (
+                                                <div
+                                                    key={
+                                                        requirement.id
+                                                    }
+                                                    className="rounded-lg border border-slate-200 bg-white p-2"
+                                                >
+                                                    <p className="truncate text-xs font-semibold text-slate-800">
+                                                        {
+                                                            requirement
+                                                                .shiftPreset
+                                                                .name
+                                                        }
+                                                    </p>
+
+                                                    <p className="mt-1 text-[11px] text-slate-500">
+                                                        {formatTime(
+                                                            requirement.startAt,
+                                                        )}
+                                                        {' ～ '}
+                                                        {formatTime(
+                                                            requirement.endAt,
+                                                        )}
+                                                        {' · 必要 '}
+                                                        {
+                                                            requirement.requiredCount
+                                                        }
+                                                        人
+                                                    </p>
+
+                                                    {canEdit && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                onEditCoverageRequirement(
+                                                                    requirement,
+                                                                )
+                                                            }}
+                                                            className="mt-2 w-full rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                                                        >
+                                                            必要人数を変更
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                </div>
+                            </section>
+                        )}
                     {isManager &&
                         scheduleDay.coverageWarnings
                             .length > 0 && (

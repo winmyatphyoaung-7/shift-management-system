@@ -12,7 +12,11 @@ import {
     publishSchedule,
     copyScheduleWeek,
     clearDraftRange,
+    updateCoverageRequirement,
 } from './schedule-api.ts'
+import {
+    dashboardQueryKeys,
+} from '../dashboard/dashboard-hooks.ts'
 import type { ScheduleDateRange } from './schedule-types.ts'
 
 export const scheduleQueryKeys = {
@@ -142,6 +146,29 @@ export function useClearDraftRange() {
                 queryKey:
                     scheduleQueryKeys.all,
             })
+        },
+    })
+}
+
+export function useUpdateCoverageRequirement() {
+    const queryClient =
+        useQueryClient()
+
+    return useMutation({
+        mutationFn:
+            updateCoverageRequirement,
+
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey:
+                        scheduleQueryKeys.all,
+                }),
+                queryClient.invalidateQueries({
+                    queryKey:
+                        dashboardQueryKeys.all,
+                }),
+            ])
         },
     })
 }
