@@ -3,6 +3,10 @@ import {
     useState,
 } from 'react'
 
+import {
+    useSearchParams,
+} from 'react-router'
+
 import { useCurrentMember } from '../features/auth/auth-hooks.ts'
 import { CreateShiftForm } from '../features/schedule/create-shift-form.tsx'
 import { EditShiftForm } from '../features/schedule/edit-shift-form.tsx'
@@ -21,6 +25,8 @@ import { ScheduleWeekHeader } from '../features/schedule/schedule-week-header.ts
 import {
     addDays,
     getWeekRange,
+    isValidDateKey,
+    parseDateKey,
     shiftDateRange,
 } from '../features/schedule/schedule-date.ts'
 import { useScheduleDays } from '../features/schedule/schedule-hooks.ts'
@@ -62,10 +68,27 @@ const INITIAL_CURRENT_TIME =
     Date.now()
 
 export function SchedulePage() {
+
+    const [searchParams] =
+        useSearchParams()
+
+    const requestedDate =
+        searchParams.get('date')
+
     const [range, setRange] =
-        useState<ScheduleDateRange>(
-            () => getWeekRange(),
-        )
+    useState<ScheduleDateRange>(
+        () =>
+            requestedDate &&
+            isValidDateKey(
+                requestedDate,
+            )
+                ? getWeekRange(
+                      parseDateKey(
+                          requestedDate,
+                      ),
+                  )
+                : getWeekRange(),
+    )
 
     const [
         currentTime,

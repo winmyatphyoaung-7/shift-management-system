@@ -1,3 +1,13 @@
+import {
+    Link,
+    useNavigate,
+} from 'react-router'
+import {
+    useCurrentMember,
+} from '../features/auth/auth-hooks.ts'
+import {
+    getNotificationDestination,
+} from '../features/notifications/notification-navigation.ts'
 import { toApiError } from '../lib/api-error.ts'
 import {
     useMarkAllNotificationsRead,
@@ -19,6 +29,13 @@ function formatNotificationDate(
 }
 
 export function NotificationsPage() {
+
+    const navigate =
+        useNavigate()
+
+    const currentMemberQuery =
+        useCurrentMember()
+
     const notificationsQuery =
         useNotifications()
 
@@ -136,6 +153,14 @@ export function NotificationsPage() {
                                 markReadMutation.variables ===
                                 notification.id
 
+                            const destination =
+                                currentMemberQuery.data
+                                    ? getNotificationDestination(
+                                        notification,
+                                        currentMemberQuery.data.role,
+                                    )
+                                    : '/'
+
                             return (
                                 <article
                                     key={notification.id}
@@ -147,7 +172,34 @@ export function NotificationsPage() {
                                     ].join(' ')}
                                 >
                                     <div className="flex flex-wrap items-start justify-between gap-4">
-                                        <div className="min-w-0 flex-1">
+                                        <Link
+                                            to={destination}
+                                            aria-disabled={isUpdating}
+                                            onClick={(event) => {
+                                                if (isUpdating) {
+                                                    event.preventDefault()
+                                                    return
+                                                }
+
+                                                if (!isUnread) {
+                                                    return
+                                                }
+
+                                                event.preventDefault()
+
+                                                markReadMutation.mutate(
+                                                    notification.id,
+                                                    {
+                                                        onSuccess: () => {
+                                                            navigate(
+                                                                destination,
+                                                            )
+                                                        },
+                                                    },
+                                                )
+                                            }}
+                                            className="group min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-blue-200"
+                                        >
                                             <div className="flex items-center gap-2">
                                                 {isUnread && (
                                                     <span
@@ -156,7 +208,7 @@ export function NotificationsPage() {
                                                     />
                                                 )}
 
-                                                <h2 className="font-semibold text-slate-950">
+                                                <h2 className="font-semibold text-slate-950 transition group-hover:text-blue-700">
                                                     {copy.title}
                                                 </h2>
                                             </div>
@@ -165,12 +217,18 @@ export function NotificationsPage() {
                                                 {copy.message}
                                             </p>
 
-                                            <p className="mt-3 text-xs text-slate-500">
-                                                {formatNotificationDate(
-                                                    notification.createdAt,
-                                                )}
-                                            </p>
-                                        </div>
+                                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                                                <p className="text-xs text-slate-500">
+                                                    {formatNotificationDate(
+                                                        notification.createdAt,
+                                                    )}
+                                                </p>
+
+                                                <span className="text-xs font-semibold text-blue-700 transition group-hover:translate-x-0.5 group-hover:text-blue-800">
+                                                    詳細を見る →
+                                                </span>
+                                            </div>
+                                        </Link>
 
                                         {isUnread && (
                                             <button

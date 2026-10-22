@@ -1,4 +1,10 @@
-import { useState } from 'react'
+import {
+    useEffect,
+    useState,
+} from 'react'
+import {
+    useSearchParams,
+} from 'react-router'
 
 import {
     useCancelCoverageRequest,
@@ -184,6 +190,11 @@ function getCandidateStatusLabel(
 }
 
 export function ManagerReplacementsPage() {
+
+    const [searchParams] = useSearchParams()
+
+    const requestedRequestId = searchParams.get('requestId')
+
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
 
     const [reviewSelection, setReviewSelection,] = useState<ReviewSelection | null>(null,)
@@ -227,6 +238,28 @@ export function ManagerReplacementsPage() {
 
     const requests =
         requestsQuery.data ?? []
+
+    useEffect(() => {
+        if (
+            !requestedRequestId ||
+            !requestsQuery.data
+        ) {
+            return
+        }
+
+        const target =
+            document.getElementById(
+                `manager-coverage-request-${requestedRequestId}`,
+            )
+
+        target?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        })
+    }, [
+        requestedRequestId,
+        requestsQuery.data,
+    ])
 
     return (
         <section>
@@ -526,7 +559,14 @@ export function ManagerReplacementsPage() {
                     {requests.map((request) => (
                         <article
                             key={request.id}
-                            className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+                            id={`manager-coverage-request-${request.id}`}
+                            className={[
+                                'scroll-mt-6 rounded-3xl border bg-white p-6 shadow-sm transition',
+                                request.id ===
+                                    requestedRequestId
+                                    ? 'border-blue-400 ring-4 ring-blue-100'
+                                    : 'border-slate-200',
+                            ].join(' ')}
                         >
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>

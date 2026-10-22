@@ -36,6 +36,24 @@ export function parseDateKey(
   )
 }
 
+export function isValidDateKey(
+  value: string,
+): boolean {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(
+      value,
+    )
+  ) {
+    return false
+  }
+
+  return (
+    formatDateKey(
+      parseDateKey(value),
+    ) === value
+  )
+}
+
 export function addDays(
   value: string,
   numberOfDays: number,

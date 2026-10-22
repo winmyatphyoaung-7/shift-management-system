@@ -1,4 +1,13 @@
 import {
+    useEffect,
+    useState,
+} from 'react'
+
+import {
+    useSearchParams,
+} from 'react-router'
+
+import {
     useCancelCoverageRequest,
     useMyCoverageActivity,
     useWithdrawCoverageResponse,
@@ -10,10 +19,6 @@ import type {
 } from '../features/coverage/coverage-types.ts'
 import { CoverageActionConfirmation } from '../features/coverage/coverage-action-confirmation.tsx'
 import { toApiError } from '../lib/api-error.ts'
-import {
-    useEffect,
-    useState,
-} from 'react'
 
 type CoverageConfirmation = {
     action:
@@ -118,6 +123,13 @@ function getRequestStatusTone(
 }
 
 export function MyReplacementsPage() {
+
+    const [searchParams] =
+        useSearchParams()
+
+    const requestedRequestId =
+        searchParams.get('requestId')
+
     const [currentTime, setCurrentTime] = useState(INITIAL_CURRENT_TIME)
     const [confirmation, setConfirmation,] = useState<CoverageConfirmation | null>(null)
 
@@ -136,6 +148,34 @@ export function MyReplacementsPage() {
 
     const activityQuery =
         useMyCoverageActivity()
+
+    useEffect(() => {
+        if (
+            !requestedRequestId ||
+            !activityQuery.data
+        ) {
+            return
+        }
+
+        const ownRequest =
+            document.getElementById(
+                `own-coverage-request-${requestedRequestId}`,
+            )
+
+        const candidacy =
+            document.getElementById(
+                `coverage-candidacy-${requestedRequestId}`,
+            )
+
+            ; (ownRequest ?? candidacy)
+                ?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                })
+    }, [
+        requestedRequestId,
+        activityQuery.data,
+    ])
 
     const cancelMutation =
         useCancelCoverageRequest()
@@ -249,7 +289,14 @@ export function MyReplacementsPage() {
                                 return (
                                     <article
                                         key={request.id}
-                                        className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+                                        id={`own-coverage-request-${request.id}`}
+                                        className={[
+                                            'scroll-mt-6 rounded-3xl border bg-white p-6 shadow-sm transition',
+                                            request.id ===
+                                                requestedRequestId
+                                                ? 'border-blue-400 ring-4 ring-blue-100'
+                                                : 'border-slate-200',
+                                        ].join(' ')}
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-3">
                                             <h3 className="font-bold text-slate-950">
@@ -394,7 +441,14 @@ export function MyReplacementsPage() {
                                 return (
                                     <article
                                         key={candidacy.id}
-                                        className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+                                        id={`coverage-candidacy-${request.id}`}
+                                        className={[
+                                            'scroll-mt-6 rounded-3xl border bg-white p-6 shadow-sm transition',
+                                            request.id ===
+                                                requestedRequestId
+                                                ? 'border-blue-400 ring-4 ring-blue-100'
+                                                : 'border-slate-200',
+                                        ].join(' ')}
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-3">
                                             <div>
