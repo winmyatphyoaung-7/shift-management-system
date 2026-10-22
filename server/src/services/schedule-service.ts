@@ -249,6 +249,38 @@ export async function publishScheduleDays(
         );
       }
 
+      const startedShift =
+        await transaction.shift.findFirst({
+          where: {
+            scheduleDayId: {
+              in: scheduleDayIds,
+            },
+            status: "ACTIVE",
+            startAt: {
+              lte: publishedAt,
+            },
+          },
+          orderBy: {
+            startAt: "asc",
+          },
+          select: {
+            id: true,
+            startAt: true,
+          },
+        });
+
+      if (startedShift) {
+        throw new AppError(
+          409,
+          "SCHEDULE_CONTAINS_STARTED_SHIFT",
+          "A schedule containing a started shift cannot be published",
+          {
+            shiftId: startedShift.id,
+            startAt: startedShift.startAt,
+          },
+        );
+      }
+
       await transaction.scheduleDay.updateMany({
         where: {
           id: {

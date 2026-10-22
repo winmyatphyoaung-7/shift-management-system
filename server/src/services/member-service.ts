@@ -343,14 +343,16 @@ export async function deactivateStoreMember(
         );
       }
 
+      const now = new Date();
+
       const futureShift =
         await transaction.shift.findFirst({
           where: {
             assigneeMembershipId:
               membership.id,
             status: "ACTIVE",
-            startAt: {
-              gt: new Date(),
+            endAt: {
+              gt: now,
             },
           },
           orderBy: {
@@ -374,7 +376,7 @@ export async function deactivateStoreMember(
         throw new AppError(
           409,
           "MEMBER_HAS_FUTURE_SHIFTS",
-          "A member with future active shifts cannot be deactivated",
+          "A member with current or future active shifts cannot be deactivated",
           {
             shiftId: futureShift.id,
             startAt: futureShift.startAt,
@@ -400,8 +402,8 @@ export async function deactivateStoreMember(
                 "OPEN",
               ],
             },
-            requestedStartAt: {
-              gt: new Date(),
+            requestedEndAt: {
+              gt: now,
             },
 
             OR: [

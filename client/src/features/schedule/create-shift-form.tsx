@@ -40,13 +40,13 @@ function getInitialInput(
     assigneeMembershipIds: [],
     startTime: firstPreset
       ? formatMinuteOfDay(
-          firstPreset.startMinute,
-        )
+        firstPreset.startMinute,
+      )
       : '08:00',
     endTime: firstPreset
       ? formatMinuteOfDay(
-          firstPreset.endMinute,
-        )
+        firstPreset.endMinute,
+      )
       : '13:00',
     note: '',
   }
@@ -76,6 +76,8 @@ function getApiErrorMessage(
       '選択したシフト枠が見つかりません。',
     SHIFT_PRESETS_NOT_CONFIGURED:
       '有効なシフト枠が設定されていません。',
+    SHIFT_DURATION_TOO_LONG:
+      'シフト時間は24時間未満にしてください。',
   }
 
   return messages[code] ??
@@ -120,8 +122,8 @@ export function CreateShiftForm({
   const apiError =
     createShiftsMutation.isError
       ? toApiError(
-          createShiftsMutation.error,
-        )
+        createShiftsMutation.error,
+      )
       : null
 
   function toggleAssignee(
@@ -137,16 +139,16 @@ export function CreateShiftForm({
         assigneeMembershipIds:
           isSelected
             ? current
-                .assigneeMembershipIds
-                .filter(
-                  (id) =>
-                    id !== membershipId,
-                )
+              .assigneeMembershipIds
+              .filter(
+                (id) =>
+                  id !== membershipId,
+              )
             : [
-                ...current
-                  .assigneeMembershipIds,
-                membershipId,
-              ],
+              ...current
+                .assigneeMembershipIds,
+              membershipId,
+            ],
       }
     })
 
@@ -265,17 +267,17 @@ export function CreateShiftForm({
 
                   ...(selectedPreset
                     ? {
-                        startTime:
-                          formatMinuteOfDay(
-                            selectedPreset
-                              .startMinute,
-                          ),
-                        endTime:
-                          formatMinuteOfDay(
-                            selectedPreset
-                              .endMinute,
-                          ),
-                      }
+                      startTime:
+                        formatMinuteOfDay(
+                          selectedPreset
+                            .startMinute,
+                        ),
+                      endTime:
+                        formatMinuteOfDay(
+                          selectedPreset
+                            .endMinute,
+                        ),
+                    }
                     : {}),
                 }))
 
@@ -443,7 +445,7 @@ export function CreateShiftForm({
                             ID: {member.loginId}
                             {' · '}
                             {member.role ===
-                            'MANAGER'
+                              'MANAGER'
                               ? 'Manager'
                               : 'Staff'}
                           </span>
@@ -457,13 +459,13 @@ export function CreateShiftForm({
 
             {fieldErrors
               .assigneeMembershipIds && (
-              <p className="mt-2 text-sm text-red-600">
-                {
-                  fieldErrors
-                    .assigneeMembershipIds
-                }
-              </p>
-            )}
+                <p className="mt-2 text-sm text-red-600">
+                  {
+                    fieldErrors
+                      .assigneeMembershipIds
+                  }
+                </p>
+              )}
           </div>
 
           <div className="md:col-span-2">

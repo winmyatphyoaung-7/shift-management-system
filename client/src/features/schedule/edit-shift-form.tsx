@@ -78,6 +78,8 @@ function getApiErrorMessage(
       '無効なメンバーにはシフトを割り当てられません。',
     SHIFT_PRESET_NOT_FOUND:
       '選択したシフト枠が見つかりません。',
+    SHIFT_DURATION_TOO_LONG:
+      'シフト時間は24時間未満にしてください。',
   }
 
   return messages[code] ??
@@ -123,8 +125,8 @@ export function EditShiftForm({
   const apiError =
     updateShiftMutation.isError
       ? toApiError(
-          updateShiftMutation.error,
-        )
+        updateShiftMutation.error,
+      )
       : null
 
   function clearError(
@@ -304,13 +306,13 @@ export function EditShiftForm({
 
             {fieldErrors
               .assigneeMembershipId && (
-              <p className="mt-2 text-sm text-red-600">
-                {
-                  fieldErrors
-                    .assigneeMembershipId
-                }
-              </p>
-            )}
+                <p className="mt-2 text-sm text-red-600">
+                  {
+                    fieldErrors
+                      .assigneeMembershipId
+                  }
+                </p>
+              )}
           </div>
 
           <div className="md:col-span-2">
@@ -341,17 +343,17 @@ export function EditShiftForm({
 
                   ...(selectedPreset
                     ? {
-                        startTime:
-                          formatMinuteOfDay(
-                            selectedPreset
-                              .startMinute,
-                          ),
-                        endTime:
-                          formatMinuteOfDay(
-                            selectedPreset
-                              .endMinute,
-                          ),
-                      }
+                      startTime:
+                        formatMinuteOfDay(
+                          selectedPreset
+                            .startMinute,
+                        ),
+                      endTime:
+                        formatMinuteOfDay(
+                          selectedPreset
+                            .endMinute,
+                        ),
+                    }
                     : {}),
                 }))
 

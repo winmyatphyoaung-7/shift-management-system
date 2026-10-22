@@ -12,6 +12,9 @@ import { ensureScheduleDayWithCoverageRequirements } from "./schedule-day-servic
 import { createNotifications } from "./notification-service.js";
 import { prisma } from "../lib/prisma.js";
 
+const MAX_SHIFT_DURATION_MS =
+  24 * 60 * 60 * 1000;
+
 type ShiftTimingInput = Pick<
   CreateShiftsBody,
   "scheduleDate" | "startAt" | "endAt"
@@ -35,6 +38,18 @@ export function validateShiftTiming(
       400,
       "INVALID_SHIFT_TIME_RANGE",
       "Shift end time must be after start time",
+    );
+  }
+
+  if (
+    endAt.getTime() -
+    startAt.getTime() >=
+    MAX_SHIFT_DURATION_MS
+  ) {
+    throw new AppError(
+      400,
+      "SHIFT_DURATION_TOO_LONG",
+      "Shift duration must be less than 24 hours",
     );
   }
 

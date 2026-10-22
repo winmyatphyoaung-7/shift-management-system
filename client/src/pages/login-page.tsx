@@ -84,7 +84,6 @@ export function LoginPage() {
         },
       )
     } catch (error) {
-        // console.log(error);
       const apiError =
         toApiError(error)
 

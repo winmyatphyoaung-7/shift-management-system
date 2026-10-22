@@ -42,6 +42,8 @@ function getApiErrorMessage(
       '選択した期間には、すでに公開済みの日付が含まれています。',
     VALIDATION_ERROR:
       '公開期間を確認してください。',
+    SCHEDULE_CONTAINS_STARTED_SHIFT:
+      '開始済みのシフトを含むスケジュールは公開できません。',
   }
 
   return messages[code] ??
@@ -72,8 +74,8 @@ export function PublishScheduleForm({
   const apiError =
     publishMutation.isError
       ? toApiError(
-          publishMutation.error,
-        )
+        publishMutation.error,
+      )
       : null
 
   function handleSubmit(
