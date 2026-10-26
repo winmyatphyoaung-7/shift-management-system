@@ -1,6 +1,4 @@
 # Dependencies
-
-# Dependencies
 node_modules/
 
 # Build output
@@ -11,11 +9,14 @@ dist/
 .env.*
 !.env.example
 
+# Local project planning documents
+/PROJECT_SPEC.md
+/PROJECT_PROGRESS.md
+
 # Generated Prisma Client
 server/src/generated/prisma/
 
 # Prisma-generated AI tooling
-server AI tooling
 server/.agents/
 server/.claude/
 server/.windsurf/
